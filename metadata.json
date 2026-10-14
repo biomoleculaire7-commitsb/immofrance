@@ -1,0 +1,6 @@
+{
+  "name": "ImmoAI - Qualification IA de Dossiers Locataires",
+  "description": "Plateforme d'intelligence artificielle pour agences immobilières françaises : lecture automatique de bulletins de paie, calcul du taux d'effort (règle des 3x le loyer) et pré-qualification instantanée des candidats locataires.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
