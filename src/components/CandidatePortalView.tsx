@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Upload,
@@ -17,6 +17,19 @@ import {
 } from 'lucide-react';
 import { Property, CandidateDossier } from '../types.ts';
 
+const DEFAULT_FALLBACK_PROPERTY: Property = {
+  id: 'prop-1',
+  title: 'Appartement T2 lumineux - Proche Métro Charonne',
+  city: 'Paris',
+  postalCode: '75011',
+  rentCC: 980,
+  surface: 42,
+  rooms: 2,
+  address: '28 Rue de la Roquette, 75011 Paris',
+  status: 'Disponible',
+  image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop&q=80',
+};
+
 interface CandidatePortalViewProps {
   properties: Property[];
   defaultPropertyId?: string;
@@ -30,9 +43,25 @@ export const CandidatePortalView: React.FC<CandidatePortalViewProps> = ({
   onCandidateSubmitted,
   onBackToDashboard,
 }) => {
+  const availableProperties =
+    properties && properties.length > 0 ? properties : [DEFAULT_FALLBACK_PROPERTY];
+
   const [selectedPropId, setSelectedPropId] = useState<string>(
-    defaultPropertyId || (properties.length > 0 ? properties[0].id : 'prop-1')
+    defaultPropertyId || availableProperties[0].id
   );
+
+  useEffect(() => {
+    if (defaultPropertyId && availableProperties.some((p) => p.id === defaultPropertyId)) {
+      setSelectedPropId(defaultPropertyId);
+    } else if (!availableProperties.some((p) => p.id === selectedPropId)) {
+      setSelectedPropId(availableProperties[0].id);
+    }
+  }, [defaultPropertyId, properties]);
+
+  const currentProperty =
+    availableProperties.find((p) => p.id === selectedPropId) ||
+    availableProperties[0] ||
+    DEFAULT_FALLBACK_PROPERTY;
 
   const [formData, setFormData] = useState({
     firstName: 'Julien',
@@ -61,8 +90,6 @@ Net payé en compte : 2 950,00 €`);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<any | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const currentProperty = properties.find((p) => p.id === selectedPropId) || properties[0];
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -241,10 +268,10 @@ Net payé en compte : 2 950,00 €`);
               1. Logement convoité
             </label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-              <div className="h-28 rounded-xl overflow-hidden">
+              <div className="h-28 rounded-xl overflow-hidden bg-slate-100">
                 <img
-                  src={currentProperty.image}
-                  alt={currentProperty.title}
+                  src={currentProperty?.image || DEFAULT_FALLBACK_PROPERTY.image}
+                  alt={currentProperty?.title || 'Logement'}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -254,21 +281,21 @@ Net payé en compte : 2 950,00 €`);
                   onChange={(e) => setSelectedPropId(e.target.value)}
                   className="w-full text-sm font-bold rounded-xl border border-slate-300 px-3 py-2 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  {properties.map((p) => (
+                  {availableProperties.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.city} - {p.title} ({p.rentCC} €/mois CC)
                     </option>
                   ))}
                 </select>
                 <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                  <span className="font-semibold text-slate-700">{currentProperty.surface} m²</span>
+                  <span className="font-semibold text-slate-700">{currentProperty?.surface || 42} m²</span>
                   <span>•</span>
-                  <span>{currentProperty.rooms} pièce(s)</span>
+                  <span>{currentProperty?.rooms || 2} pièce(s)</span>
                   <span>•</span>
-                  <span>{currentProperty.address}</span>
+                  <span>{currentProperty?.address || 'Adresse consultable en agence'}</span>
                 </div>
                 <div className="inline-block bg-emerald-50 text-emerald-800 text-xs font-black px-3 py-1 rounded-lg">
-                  Loyer exigé : {currentProperty.rentCC} € CC (Revenus souhaités : ~ {currentProperty.rentCC * 3} € net)
+                  Loyer exigé : {currentProperty?.rentCC || 980} € CC (Revenus souhaités : ~ {(currentProperty?.rentCC || 980) * 3} € net)
                 </div>
               </div>
             </div>

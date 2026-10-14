@@ -12,11 +12,106 @@ import { PaywallModal } from './components/PaywallModal.tsx';
 import { FeedbackModal } from './components/FeedbackModal.tsx';
 import { DiagnosticsCenterModal } from './components/DiagnosticsCenterModal.tsx';
 import { CandidateDossier, Property } from './types.ts';
-import { CheckCircle2, X, Sparkles, AlertCircle } from 'lucide-react';
+import { CheckCircle2, X, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
+
+const DEFAULT_PROPERTIES: Property[] = [
+  {
+    id: 'prop-1',
+    title: 'Appartement T2 lumineux - Proche Métro Charonne',
+    city: 'Paris',
+    postalCode: '75011',
+    rentCC: 980,
+    surface: 42,
+    rooms: 2,
+    address: '28 Rue de la Roquette, 75011 Paris',
+    status: 'Disponible',
+    image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'prop-2',
+    title: 'Beau T3 Haussmannien avec balcon filant',
+    city: 'Lyon',
+    postalCode: '69006',
+    rentCC: 1250,
+    surface: 68,
+    rooms: 3,
+    address: '15 Boulevard des Belges, 69006 Lyon',
+    status: 'Disponible',
+    image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'prop-3',
+    title: 'Studio meublé rénové - Centre historique',
+    city: 'Bordeaux',
+    postalCode: '33000',
+    rentCC: 620,
+    surface: 24,
+    rooms: 1,
+    address: '8 Rue Sainte-Catherine, 33000 Bordeaux',
+    status: 'Disponible',
+    image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 'prop-4',
+    title: 'T3 vue mer avec terrasse - Corniche Kennedy',
+    city: 'Marseille',
+    postalCode: '13007',
+    rentCC: 1450,
+    surface: 75,
+    rooms: 3,
+    address: '42 Corniche JF Kennedy, 13007 Marseille',
+    status: 'Disponible',
+    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&auto=format&fit=crop&q=80',
+  },
+];
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; onReset?: () => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('App ErrorBoundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-xl mx-auto my-12 p-6 rounded-2xl bg-white border border-rose-200 shadow-xl text-center space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900">Une erreur d'affichage est survenue</h3>
+          <p className="text-xs text-slate-500">
+            {this.state.error?.message || 'Impossible d\'afficher cet onglet pour le moment.'}
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              if (this.props.onReset) this.props.onReset();
+            }}
+            className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition cursor-pointer"
+          >
+            Rafraîchir cet affichage
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'scanner' | 'candidate-portal' | 'landing'>('scanner');
-  const [properties, setProperties] = useState<Property[]>([]);
+  const [properties, setProperties] = useState<Property[]>(DEFAULT_PROPERTIES);
   const [candidates, setCandidates] = useState<CandidateDossier[]>([]);
   const [inspectedCandidate, setInspectedCandidate] = useState<CandidateDossier | null>(null);
   const [reportCandidate, setReportCandidate] = useState<CandidateDossier | null>(null);
@@ -180,54 +275,56 @@ export default function App() {
 
       {/* Main Content Views */}
       <main className="flex-1">
-        {currentTab === 'dashboard' && (
-          <DashboardView
-            candidates={candidates}
-            properties={properties}
-            onSelectCandidateToInspect={(candidate) => setInspectedCandidate(candidate)}
-            onUpdateCandidateStatus={handleUpdateStatus}
-            onDeleteCandidate={handleDeleteCandidate}
-            onNavigateToScanner={() => setCurrentTab('scanner')}
-            onNavigateToCandidatePortal={(propId) => {
-              if (propId) setPortalDefaultPropId(propId);
-              setCurrentTab('candidate-portal');
-            }}
-            onOpenLandlordReport={(candidate) => setReportCandidate(candidate)}
-          />
-        )}
+        <ErrorBoundary onReset={() => setCurrentTab('scanner')}>
+          {currentTab === 'dashboard' && (
+            <DashboardView
+              candidates={candidates}
+              properties={properties}
+              onSelectCandidateToInspect={(candidate) => setInspectedCandidate(candidate)}
+              onUpdateCandidateStatus={handleUpdateStatus}
+              onDeleteCandidate={handleDeleteCandidate}
+              onNavigateToScanner={() => setCurrentTab('scanner')}
+              onNavigateToCandidatePortal={(propId) => {
+                if (propId) setPortalDefaultPropId(propId);
+                setCurrentTab('candidate-portal');
+              }}
+              onOpenLandlordReport={(candidate) => setReportCandidate(candidate)}
+            />
+          )}
 
-        {currentTab === 'scanner' && (
-          <DocumentScannerView
-            properties={properties}
-            onAddCandidateToDashboard={(cand) => {
-              handleAddCandidate(cand);
-              setCurrentTab('dashboard');
-            }}
-            onOpenLandlordReport={(cand) => setReportCandidate(cand)}
-            onReportAnomaly={(snippet) => {
-              setFeedbackSnippet(snippet);
-              setIsFeedbackOpen(true);
-            }}
-          />
-        )}
+          {currentTab === 'scanner' && (
+            <DocumentScannerView
+              properties={properties}
+              onAddCandidateToDashboard={(cand) => {
+                handleAddCandidate(cand);
+                setCurrentTab('dashboard');
+              }}
+              onOpenLandlordReport={(cand) => setReportCandidate(cand)}
+              onReportAnomaly={(snippet) => {
+                setFeedbackSnippet(snippet);
+                setIsFeedbackOpen(true);
+              }}
+            />
+          )}
 
-        {currentTab === 'candidate-portal' && (
-          <CandidatePortalView
-            properties={properties}
-            defaultPropertyId={portalDefaultPropId}
-            onCandidateSubmitted={(cand) => {
-              handleAddCandidate(cand);
-            }}
-            onBackToDashboard={() => setCurrentTab('dashboard')}
-          />
-        )}
+          {currentTab === 'candidate-portal' && (
+            <CandidatePortalView
+              properties={properties}
+              defaultPropertyId={portalDefaultPropId}
+              onCandidateSubmitted={(cand) => {
+                handleAddCandidate(cand);
+              }}
+              onBackToDashboard={() => setCurrentTab('dashboard')}
+            />
+          )}
 
-        {currentTab === 'landing' && (
-          <LandingView
-            onStartDemo={() => setCurrentTab('scanner')}
-            onGoToDashboard={() => setCurrentTab('dashboard')}
-          />
-        )}
+          {currentTab === 'landing' && (
+            <LandingView
+              onStartDemo={() => setCurrentTab('scanner')}
+              onGoToDashboard={() => setCurrentTab('dashboard')}
+            />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}
@@ -263,7 +360,7 @@ export default function App() {
               onClick={() => setIsGuideOpen(true)}
               className="text-indigo-400 hover:text-indigo-300 font-medium underline cursor-pointer"
             >
-              دليل المعمارية والربط
+              Architecture & Documentation API
             </button>
             <span className="text-slate-600">|</span>
             <span>Proptech Paris - Lyon - Bordeaux - Marseille</span>

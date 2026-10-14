@@ -131,8 +131,6 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
       const data = await res.json();
       if (data.success && data.url) {
         setQuickCheckoutUrl(data.url);
-      } else {
-        alert(data.error || 'Erreur lors de la génération de la session');
       }
     } catch (err: any) {
       console.error('Erreur checkout:', err);
@@ -186,7 +184,7 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
             }`}
           >
             <Play className="w-4 h-4" />
-            <span>كيف تجرّب المنصة وتتأكد من جاهزيتها؟ (Guide de Test)</span>
+            <span>Guide de Démonstration & Scénarios Clés</span>
           </button>
 
           <button
@@ -198,40 +196,39 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
             }`}
           >
             <Cpu className="w-4 h-4" />
-            <span>حالة المفاتيح والنظام (Diagnostics Live)</span>
+            <span>État du Système & Diagnostic Live</span>
           </button>
         </div>
 
         {/* Content */}
         <div className="p-6 overflow-y-auto space-y-6 max-h-[72vh]">
-          {/* TAB 1: HOW TO TEST GUIDE (ARABIC & FRENCH) */}
+          {/* TAB 1: HOW TO TEST GUIDE (100% FRENCH) */}
           {activeTab === 'how_to_test' && (
-            <div className="space-y-6 text-right leading-relaxed" dir="rtl">
+            <div className="space-y-6 leading-relaxed">
               {/* Ready banner */}
               <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/70 via-slate-800 to-slate-900 border border-emerald-500/40">
                 <h3 className="text-base font-bold text-emerald-400 mb-1 flex items-center gap-2">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                  <span>المنصة جاهزة تماماً للعمل والنشر (Production-Ready)</span>
+                  <span>Plateforme 100% prête pour le déploiement en agence immobilière</span>
                 </h3>
                 <p className="text-xs text-slate-300">
-                  لقد تم ضبط المنصة بنسبة 100% لتناسب الوكالات العقارية الفرنسية، وتتضمن محرك الذكاء الاصطناعي، حساب نسبة الـ 33%، توليد تقارير الـ PDF، وبوابة تقديم المستأجرين، ونظام الاشتراكات.
+                  L'ensemble des modules a été calibré pour les standards du marché immobilier français : lecture de bulletins de salaire, règle de solvabilité des 33% (Loi ALUR & GLI), export PDF certifié propriétaire et abonnement Stripe sécurisé.
                 </p>
               </div>
 
-              {/* 4 Interactive Test Steps */}
+              {/* 5 Interactive Test Steps */}
               <div className="space-y-3">
-                <h4 className="text-sm font-bold text-white">كيف تجرّب المنصة خطوة بخطوة الآن؟ (Test Walkthrough)</h4>
+                <h4 className="text-sm font-bold text-white">5 scénarios pour tester l'application en conditions réelles :</h4>
 
                 <div className="space-y-3 text-xs">
                   {/* Step 1 */}
                   <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-1">
                       <span className="font-bold text-emerald-400 text-xs block">
-                        التجربة 1 : فحص قسيمة راتب حقيقية واستخراج البيانات
+                        Scénario 1 : Qualification automatique d'un bulletin de paie CDI
                       </span>
                       <p className="text-slate-300">
-                        ادخل إلى تبويب <strong>«Testeur IA»</strong>، واختر أحد النماذج الفرنسية الجاهزة (مثل Alexandre Martin براتب 3,450€) ثم اضغط <em>«Qualifier le dossier avec ImmoAI»</em>.
-                        ستشاهد كيف يستخرج الذكاء الاصطناعي الراتب الصافي ونوع العقد وفترة التجربة في ثانيتين.
+                        Rendez-vous dans l'onglet <strong>« Testeur IA »</strong> et sélectionnez l'exemple <em>Alexandre Martin (3 450 € net)</em>. Cliquez sur <strong>« Qualifier le dossier avec ImmoAI »</strong> pour observer l'extraction instantanée du salaire, de l'employeur et la validation de la période d'essai.
                       </p>
                     </div>
                     <button
@@ -241,8 +238,8 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                       }}
                       className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shrink-0 transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>جرّب الفحص الآن</span>
-                      <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                      <span>Tester le scanner</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -250,11 +247,10 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                   <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-1">
                       <span className="font-bold text-emerald-400 text-xs block">
-                        التجربة 2 : تصدير تقرير الـ PDF المخصص للمالك (Rapport Propriétaire)
+                        Scénario 2 : Génération et export du Rapport Propriétaire (PDF)
                       </span>
                       <p className="text-slate-300">
-                        بعد فحص أي ملف، اضغط على <strong>«Générer Rapport Propriétaire (PDF)»</strong> أو من جدول المرشحين.
-                        ستفتح لك شاشة تقرير رسمي جاهز للطباعة أو التنزيل فوراً بصيغة PDF تتضمن النتيجة ونقاط القوة وشعار الوكالة.
+                        Après l'analyse ou depuis le Tableau de Bord, cliquez sur <strong>« Générer Rapport Propriétaire (PDF) »</strong>. Une fiche de synthèse certifiée au format A4 s'affiche, prête pour l'impression ou l'envoi direct par email au bailleur.
                       </p>
                     </div>
                     <button
@@ -264,8 +260,8 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                       }}
                       className="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs shrink-0 transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>عرض التقارير</span>
-                      <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                      <span>Voir le Dashboard</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
@@ -273,11 +269,10 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                   <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-1">
                       <span className="font-bold text-emerald-400 text-xs block">
-                        التجربة 3 : تجربة بوابة تقديم المستأجر (Portail Candidat)
+                        Scénario 3 : Parcours locataire sur le Portail Candidat Public
                       </span>
                       <p className="text-slate-300">
-                        افتح تبويب <strong>«Portail Candidat»</strong>، هذا هو الرابط الذي تضعه الوكالة في إعلانات SeLoger أو Leboncoin.
-                        قم بتعبئة بيانات مرشح تجريبي لترى كيف يستلم النظام ملفه مباشرة في لوحة التحكم.
+                        Ouvrez l'onglet <strong>« Portail Candidat »</strong>. C'est le lien que vous intégrez dans vos annonces SeLoger ou Leboncoin. Vous pouvez y déposer un dossier test qui apparaîtra immédiatement qualifié dans votre tableau de bord.
                       </p>
                     </div>
                   </div>
@@ -286,10 +281,10 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                   <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-1">
                       <span className="font-bold text-emerald-400 text-xs block">
-                        التجربة 4 : تجربة الدفع باشتراك Stripe الحقيقي (14 يوم مجاناً + 79€/شهر)
+                        Scénario 4 : Test de paiement Stripe Pro (Essai 14 jours + 79 €/mois)
                       </span>
                       <p className="text-slate-300">
-                        اضغط على الزر أدناه لتوليد رابط جلسة دفع حقيقية عبر Stripe Checkout. يمكنك استخدام بطاقة الاختبار الرسمية <code>4242 4242 4242 4242</code> لتجربة الدفع دون أن يتم خصم أي سنت.
+                        Générez une session de paiement sécurisée Stripe Checkout. Vous pouvez utiliser la carte de test officielle <code>4242 4242 4242 4242</code> (expiration future, CVC 123) pour tester le parcours d'abonnement sans aucun débit immédiat (0,00 € débités aujourd'hui).
                       </p>
                       {quickCheckoutUrl && (
                         <div className="pt-2">
@@ -300,7 +295,7 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-slate-950 font-bold text-xs hover:bg-emerald-400 transition"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
-                            <span>فتح جلسة Stripe التي تم توليدها الآن</span>
+                            <span>Ouvrir la session Stripe Checkout générée</span>
                           </a>
                         </div>
                       )}
@@ -313,12 +308,12 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                       {generatingCheckout ? (
                         <>
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>جاري التوليد...</span>
+                          <span>Génération...</span>
                         </>
                       ) : (
                         <>
                           <CreditCard className="w-3.5 h-3.5" />
-                          <span>توليد رابط دفع للتجربة</span>
+                          <span>Générer session Stripe</span>
                         </>
                       )}
                     </button>
@@ -328,10 +323,10 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                   <div className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="space-y-1">
                       <span className="font-bold text-emerald-400 text-xs block">
-                        التجربة 5 : الإبلاغ عن أي خطأ أو إرسال فيدباك (Feedback & Bug Report)
+                        Scénario 5 : Signalement d'anomalie ou suggestion d'amélioration
                       </span>
                       <p className="text-slate-300">
-                        إذا لاحظت أي قسيمة راتب فرنسية لم تُقرأ بدقة أو أردت اقتراح ميزة جديدة، يمكنك الضغط على زر <strong>«Signaler une anomalie»</strong> أسفل الشاشة لإرسال تذكرة فورية يتم تسجيلها وتخزينها في قاعدة البيانات.
+                        Si une fiche de paie présente une structure atypique ou si vous souhaitez suggérer une évolution, cliquez sur <strong>« Avis & Bugs »</strong>. Le ticket sera horodaté et enregistré avec un identifiant unique (ex: TK-3020).
                       </p>
                     </div>
                     <button
@@ -341,8 +336,8 @@ export const DiagnosticsCenterModal: React.FC<DiagnosticsCenterModalProps> = ({
                       }}
                       className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shrink-0 transition flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      <span>فتح نافذة الفيدباك</span>
-                      <ArrowRight className="w-3.5 h-3.5 rotate-180" />
+                      <span>Ouvrir le centre d'avis</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
