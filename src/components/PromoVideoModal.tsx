@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Play,
@@ -21,7 +21,10 @@ import {
   Euro,
   Layers,
   ChevronRight,
+  Smartphone,
   Monitor,
+  HelpCircle,
+  TrendingUp,
 } from 'lucide-react';
 import { AgencyProfile, DEFAULT_AGENCY_PROFILE } from '../types.ts';
 
@@ -116,6 +119,7 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   onClose,
   agencyProfile,
 }) => {
+  // Safe Agency Profile with complete fallbacks
   const safeProfile = {
     name: agencyProfile?.name || DEFAULT_AGENCY_PROFILE.name,
     managerName: agencyProfile?.managerName || DEFAULT_AGENCY_PROFILE.managerName,
@@ -125,28 +129,27 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
     email: agencyProfile?.email || DEFAULT_AGENCY_PROFILE.email,
   };
 
-  const [activeTab, setActiveTab] = useState<'video_player' | 'scripts_social' | 'outreach_email'>('video_player');
+  // ALL HOOKS CALLED AT TOP LEVEL UNCONDITIONALLY (React Rules of Hooks)
+  const [activeTab, setActiveTab] = useState<'video_player' | 'scripts_social' | 'outreach_email' | 'objections'>('video_player');
+  const [formatMode, setFormatMode] = useState<'16:9' | '9:16'>('16:9');
   const [currentSceneIdx, setCurrentSceneIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [progress, setProgress] = useState(0); // 0 to 100 in current scene
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  if (!isOpen) return null;
-
-  const validIndex = Math.max(0, Math.min(currentSceneIdx, SCENES.length - 1));
-  const currentScene = SCENES[validIndex] || SCENES[0];
-
-  // Safe voice synthesis without crashing in iframes or mobile
+  // Safe voice synthesis helper
   const safeSpeak = (text: string) => {
     if (!isAudioEnabled) return;
     try {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window && (window as any).SpeechSynthesisUtterance) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
         window.speechSynthesis.cancel();
-        const utterance = new (window as any).SpeechSynthesisUtterance(text);
-        utterance.lang = 'fr-FR';
-        utterance.rate = 1.05;
-        window.speechSynthesis.speak(utterance);
+        if (typeof SpeechSynthesisUtterance !== 'undefined') {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'fr-FR';
+          utterance.rate = 1.05;
+          window.speechSynthesis.speak(utterance);
+        }
       }
     } catch (err) {
       // Audio failed silently without crashing UI
@@ -155,23 +158,29 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
 
   const safeStopAudio = () => {
     try {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
     } catch (e) {}
   };
 
-  // Video loop timer
+  // Video loop timer hook - unconditionally declared
   useEffect(() => {
+    if (!isOpen) {
+      safeStopAudio();
+      return;
+    }
+
     let timer: any = null;
 
     if (isPlaying) {
+      const scene = SCENES[currentSceneIdx] || SCENES[0];
       if (progress === 0 && isAudioEnabled) {
-        safeSpeak(currentScene.voiceoverFr);
+        safeSpeak(scene.voiceoverFr);
       }
 
       const stepMs = 100;
-      const totalSteps = ((currentScene.duration || 8) * 1000) / stepMs;
+      const totalSteps = ((scene.duration || 8) * 1000) / stepMs;
       const increment = 100 / totalSteps;
 
       timer = setInterval(() => {
@@ -196,7 +205,20 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isPlaying, currentSceneIdx, isAudioEnabled]);
+  }, [isOpen, isPlaying, currentSceneIdx, isAudioEnabled]);
+
+  // Clean audio on unmount or close
+  useEffect(() => {
+    return () => {
+      safeStopAudio();
+    };
+  }, []);
+
+  // Now conditional render after all hooks are initialized
+  if (!isOpen) return null;
+
+  const validIndex = Math.max(0, Math.min(currentSceneIdx, SCENES.length - 1));
+  const currentScene = SCENES[validIndex] || SCENES[0];
 
   const handleTogglePlay = () => {
     if (!isPlaying && progress >= 100 && currentSceneIdx === SCENES.length - 1) {
@@ -229,6 +251,13 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
     try {
       if (navigator?.clipboard?.writeText) {
         navigator.clipboard.writeText(text).catch(() => {});
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
       }
     } catch (e) {}
     setCopiedId(id);
@@ -293,25 +322,31 @@ Bien cordialement,
 L'équipe ImmoAI
 Site web : https://immoai.fr`;
 
+  // Pitch téléphonique 30 secondes
+  const pitchTelephone = `« Bonjour [Nom du Directeur], je vous appelle très brièvement au sujet de la gestion locative de votre agence.
+Aujourd'hui, vos négociateurs passent en moyenne 25 minutes par dossier à vérifier les fiches de paie et calculer les ratios d'effort.
+ImmoAI divise ce temps par 10 : notre IA lit la fiche de paie en 3 secondes, certifie l'éligibilité GLI et vous génère un rapport PDF officiel pour le bailleur.
+Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vous 2 minutes pour tester sur un dossier réel ? »`;
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
       <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-4xl w-full shadow-2xl text-slate-100 overflow-hidden flex flex-col max-h-[95vh] animate-fadeIn">
         {/* Header */}
-        <div className="p-5 sm:p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 sm:p-6 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-emerald-500/20">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-emerald-500/20 shrink-0">
               <Video className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-lg sm:text-xl font-black text-white">
+                <h2 className="text-base sm:text-xl font-black text-white">
                   Studio Vidéo Démo & Kit Commercial
                 </h2>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">
                   B2B Agences
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-400 mt-0.5 hidden sm:block">
                 Présentation vidéo animée interactive + Scripts et posts prêts pour réseaux sociaux
               </p>
             </div>
@@ -329,49 +364,100 @@ Site web : https://immoai.fr`;
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-800 bg-slate-900/60 px-6 pt-3 space-x-4">
+        <div className="flex border-b border-slate-800 bg-slate-900/60 px-4 sm:px-6 pt-3 space-x-2 sm:space-x-4 overflow-x-auto">
           <button
             onClick={() => setActiveTab('video_player')}
-            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'video_player'
                 ? 'border-emerald-400 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Play className="w-4 h-4" />
-            <span>Lecteur Vidéo Démo Animé</span>
+            <span>Lecteur Vidéo Démo</span>
           </button>
 
           <button
             onClick={() => setActiveTab('scripts_social')}
-            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'scripts_social'
                 ? 'border-emerald-400 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Share2 className="w-4 h-4 text-emerald-400" />
-            <span>Scripts Réseaux Sociaux (LinkedIn / Reels / TikTok)</span>
+            <span>Scripts Sociaux (LinkedIn / TikTok)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('outreach_email')}
-            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-2 cursor-pointer ${
+            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
               activeTab === 'outreach_email'
                 ? 'border-emerald-400 text-emerald-400'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <Send className="w-4 h-4 text-indigo-400" />
-            <span>Message de Prospection (Directeurs d'Agences)</span>
+            <span>Démarchage (Email / WhatsApp)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('objections')}
+            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'objections'
+                ? 'border-emerald-400 text-emerald-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>Argumentaire Anti-Objections</span>
           </button>
         </div>
 
         {/* Tab 1: Video Player */}
         {activeTab === 'video_player' && (
-          <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+          <div className="p-4 sm:p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+            {/* Aspect Ratio Switcher */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs text-slate-400 font-medium">Format d'affichage :</span>
+                <button
+                  onClick={() => setFormatMode('16:9')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                    formatMode === '16:9'
+                      ? 'bg-emerald-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Monitor className="w-3.5 h-3.5" />
+                  <span>16:9 Paysage (PC / YouTube / LinkedIn)</span>
+                </button>
+                <button
+                  onClick={() => setFormatMode('9:16')}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                    formatMode === '9:16'
+                      ? 'bg-emerald-500 text-slate-950'
+                      : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span>9:16 Vertical (Reels / TikTok / Shorts)</span>
+                </button>
+              </div>
+
+              <div className="text-xs text-slate-400 font-mono hidden md:block">
+                Scène {currentScene.id} sur {SCENES.length} • {currentScene.duration}s
+              </div>
+            </div>
+
             {/* The Animated Video Screen */}
-            <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/60 border border-slate-700 shadow-2xl p-6 sm:p-10 min-h-[380px] flex flex-col justify-between">
+            <div
+              className={`relative mx-auto rounded-3xl overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/60 border border-slate-700 shadow-2xl p-5 sm:p-8 flex flex-col justify-between transition-all duration-300 ${
+                formatMode === '9:16'
+                  ? 'max-w-sm min-h-[520px] border-2 border-emerald-500/40 ring-4 ring-emerald-500/10'
+                  : 'w-full min-h-[380px]'
+              }`}
+            >
               {/* Scene Top Badges */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
@@ -379,29 +465,29 @@ Site web : https://immoai.fr`;
                     {currentScene.badge}
                   </span>
                   <span className="text-xs text-slate-400 font-mono">
-                    Scène {currentScene.id} / {SCENES.length}
+                    Scène {currentScene.id}/{SCENES.length}
                   </span>
                 </div>
 
                 {currentScene.statsOverlay && (
                   <div className="px-3 py-1 rounded-xl bg-slate-800/80 border border-slate-700 text-right">
                     <span className="text-[10px] text-slate-400 block">{currentScene.statsOverlay.label}</span>
-                    <span className="text-sm font-black text-emerald-400">{currentScene.statsOverlay.value}</span>
+                    <span className="text-xs sm:text-sm font-black text-emerald-400">{currentScene.statsOverlay.value}</span>
                   </div>
                 )}
               </div>
 
               {/* Center Animated Scene Presentation */}
-              <div className="my-6 space-y-4 text-center max-w-2xl mx-auto">
-                <h3 className="text-2xl sm:text-3xl font-black text-white leading-tight animate-fadeIn">
+              <div className="my-5 space-y-3 sm:space-y-4 text-center max-w-2xl mx-auto">
+                <h3 className="text-xl sm:text-2xl font-black text-white leading-tight animate-fadeIn">
                   {currentScene.title}
                 </h3>
-                <p className="text-sm sm:text-base text-slate-300 font-medium leading-relaxed">
+                <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
                   {currentScene.subtitle}
                 </p>
 
                 {/* Visual Simulation Card based on scene graphicType */}
-                <div className="mt-4 p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 text-left max-w-lg mx-auto shadow-xl">
+                <div className="mt-3 p-3.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 text-left max-w-lg mx-auto shadow-xl">
                   {currentScene.graphicType === 'problem' && (
                     <div className="flex items-center space-x-3 text-xs text-rose-300">
                       <Clock className="w-8 h-8 text-rose-400 shrink-0 animate-pulse" />
@@ -545,7 +631,7 @@ Site web : https://immoai.fr`;
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>
-                  <strong>Astuce d'enregistrement :</strong> Vous pouvez lancer ce lecteur et enregistrer votre écran en 1080p avec votre smartphone ou un outil de capture (Loom, OBS, QuickTime) pour publier directement la vidéo sur vos réseaux sociaux !
+                  <strong>Astuce d'enregistrement :</strong> Lancez ce lecteur et enregistrez votre écran en 1080p avec votre smartphone ou un outil de capture (Windows : Win+Alt+R, Mac : Cmd+Maj+5, ou Loom/OBS) pour publier directement la vidéo sur vos réseaux sociaux !
                 </span>
               </div>
               <button
@@ -575,7 +661,7 @@ Site web : https://immoai.fr`;
 
         {/* Tab 2: Social Media Ready Copy */}
         {activeTab === 'scripts_social' && (
-          <div className="p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+          <div className="p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
             {/* Post LinkedIn B2B */}
             <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -640,7 +726,7 @@ Site web : https://immoai.fr`;
 
         {/* Tab 3: Direct Outreach for Agency Owners */}
         {activeTab === 'outreach_email' && (
-          <div className="p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+          <div className="p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
             <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -671,12 +757,91 @@ Site web : https://immoai.fr`;
                 {outreachMessageWhatsApp}
               </pre>
             </div>
+
+            {/* Pitch téléphonique */}
+            <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Pitch Téléphonique Rapide (30 secondes chrono)</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Pour appeler les agences locales et obtenir un test sans friction
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleCopyText(pitchTelephone, 'pitch')}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  {copiedId === 'pitch' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Pitch copié !</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copier le pitch</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <pre className="p-4 rounded-xl bg-slate-950 text-xs text-slate-300 font-sans whitespace-pre-wrap border border-slate-800 leading-relaxed">
+                {pitchTelephone}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Anti-Objections Argumentaire */}
+        {activeTab === 'objections' && (
+          <div className="p-4 sm:p-6 space-y-4 overflow-y-auto max-h-[75vh]">
+            <div className="space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-800/70 border border-slate-700">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-xs">Objection 1</span>
+                  « Nos négociateurs ont l'habitude de calculer sur Excel ou à la main »
+                </h4>
+                <p className="text-xs text-emerald-300 mt-2 font-medium">
+                  <strong>Réponse gagnante :</strong> Sur Excel, vos négociateurs passent 25 min par candidat et font des erreurs sur le Net Fiscal ou les primes non récurrentes. ImmoAI analyse le document en 3 secondes, détecte si le CDI est encore en période d'essai et sécurise 100% de la prise en charge par la Garantie Loyers Impayés (GLI).
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-800/70 border border-slate-700">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-xs">Objection 2</span>
+                  « Les candidats ne voudront pas utiliser un portail en ligne »
+                </h4>
+                <p className="text-xs text-emerald-300 mt-2 font-medium">
+                  <strong>Réponse gagnante :</strong> Au contraire ! Les locataires déposent leurs pièces depuis leur smartphone en 2 minutes sans envoyer de mails volumineux. Ils reçoivent un accusé de réception immédiat et votre boîte de réception d'agence reste parfaitement propre.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-800/70 border border-slate-700">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-xs">Objection 3</span>
+                  « Est-ce que le rapport est reconnu par nos propriétaires bailleurs ? »
+                </h4>
+                <p className="text-xs text-emerald-300 mt-2 font-medium">
+                  <strong>Réponse gagnante :</strong> Oui, le rapport A4 est certifié avec votre numéro SIRET, votre Carte Professionnelle (CPI), le détail des 3 derniers bulletins et le calcul certifié de solvabilité. Les propriétaires bailleurs adorent cette transparence institutionnelle.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-800/70 border border-slate-700">
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 text-xs">Objection 4</span>
+                  « Pourquoi payer 79 € HT / mois ? »
+                </h4>
+                <p className="text-xs text-emerald-300 mt-2 font-medium">
+                  <strong>Réponse gagnante :</strong> 79 € représente moins d'une heure de travail d'un négociateur. Si l'outil fait gagner 10 heures par semaine à l'équipe et évite un seul sinistre d'impayé (coût moyen : 8 000 €), le retour sur investissement est immédiat dès le premier mois.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Footer */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between text-xs">
-          <span className="text-slate-400">
+          <span className="text-slate-400 hidden sm:inline">
             Kit marketing et vidéo publicitaire prêt pour la prospection d'agences immobilières
           </span>
           <button
@@ -684,7 +849,7 @@ Site web : https://immoai.fr`;
               safeStopAudio();
               onClose();
             }}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition cursor-pointer"
+            className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition cursor-pointer ml-auto"
           >
             Fermer le studio
           </button>

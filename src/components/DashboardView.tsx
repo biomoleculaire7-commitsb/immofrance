@@ -26,6 +26,7 @@ import {
   Home,
   Check,
   RotateCcw,
+  Video,
 } from 'lucide-react';
 import { CandidateDossier, Property, AgencyProfile, DEFAULT_AGENCY_PROFILE } from '../types.ts';
 
@@ -34,6 +35,7 @@ interface DashboardViewProps {
   properties: Property[];
   agencyProfile?: AgencyProfile;
   onOpenAgencyProfile?: () => void;
+  onOpenPromoVideo?: () => void;
   onOpenAddProperty?: () => void;
   onDeleteProperty?: (propId: string) => void;
   onClearAllCandidates?: () => void;
@@ -52,6 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   properties,
   agencyProfile = DEFAULT_AGENCY_PROFILE,
   onOpenAgencyProfile,
+  onOpenPromoVideo,
   onOpenAddProperty,
   onDeleteProperty,
   onClearAllCandidates,
@@ -150,6 +153,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               <Plus className="w-4 h-4 text-emerald-400" />
               <span>Ajouter un bien</span>
+            </button>
+          )}
+
+          {onOpenPromoVideo && (
+            <button
+              onClick={onOpenPromoVideo}
+              className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-600/20 transition flex items-center space-x-2 cursor-pointer"
+              title="Studio Vidéo Démo & Scripts pour Réseaux Sociaux"
+            >
+              <Video className="w-4 h-4 text-white" />
+              <span>Vidéo & Kit Commercial</span>
             </button>
           )}
 

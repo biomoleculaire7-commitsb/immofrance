@@ -414,6 +414,7 @@ export default function App() {
               properties={properties}
               agencyProfile={agencyProfile}
               onOpenAgencyProfile={() => setIsAgencyProfileOpen(true)}
+              onOpenPromoVideo={() => setIsPromoVideoOpen(true)}
               onOpenAddProperty={() => setIsAddPropertyOpen(true)}
               onDeleteProperty={handleDeleteProperty}
               onClearAllCandidates={handleClearAllCandidates}
@@ -607,13 +608,15 @@ export default function App() {
       />
 
       {/* Promotional Video Studio & Commercial Kit Modal */}
-      <ErrorBoundary onReset={() => setIsPromoVideoOpen(false)}>
-        <PromoVideoModal
-          isOpen={isPromoVideoOpen}
-          onClose={() => setIsPromoVideoOpen(false)}
-          agencyProfile={agencyProfile}
-        />
-      </ErrorBoundary>
+      {isPromoVideoOpen && (
+        <ErrorBoundary onReset={() => setIsPromoVideoOpen(false)}>
+          <PromoVideoModal
+            isOpen={isPromoVideoOpen}
+            onClose={() => setIsPromoVideoOpen(false)}
+            agencyProfile={agencyProfile}
+          />
+        </ErrorBoundary>
+      )}
     </div>
   );
 }

@@ -138,11 +138,12 @@ export const Navbar: React.FC<NavbarProps> = ({
             {onOpenPromoVideo && (
               <button
                 onClick={onOpenPromoVideo}
-                className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-xs font-bold transition cursor-pointer shadow-sm shadow-emerald-500/10"
+                className="flex items-center space-x-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/25 to-teal-500/25 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/40 text-xs font-bold transition cursor-pointer shadow-md shadow-emerald-500/20 shrink-0"
                 title="Studio Vidéo Démo Animée & Scripts Réseaux Sociaux"
               >
-                <Video className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Vidéo & Kit Commercial</span>
+                <Video className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="hidden sm:inline">Vidéo & Kit Commercial</span>
+                <span className="sm:hidden">Vidéo & Kit</span>
               </button>
             )}
 
