@@ -607,11 +607,13 @@ export default function App() {
       />
 
       {/* Promotional Video Studio & Commercial Kit Modal */}
-      <PromoVideoModal
-        isOpen={isPromoVideoOpen}
-        onClose={() => setIsPromoVideoOpen(false)}
-        agencyProfile={agencyProfile}
-      />
+      <ErrorBoundary onReset={() => setIsPromoVideoOpen(false)}>
+        <PromoVideoModal
+          isOpen={isPromoVideoOpen}
+          onClose={() => setIsPromoVideoOpen(false)}
+          agencyProfile={agencyProfile}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

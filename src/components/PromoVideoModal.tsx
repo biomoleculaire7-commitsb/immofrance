@@ -12,22 +12,23 @@ import {
   Building2,
   FileText,
   Share2,
-  Download,
   Video,
   Send,
   ArrowRight,
   ShieldCheck,
   Zap,
-  TrendingUp,
   Clock,
   Euro,
+  Layers,
+  ChevronRight,
+  Monitor,
 } from 'lucide-react';
 import { AgencyProfile, DEFAULT_AGENCY_PROFILE } from '../types.ts';
 
 interface PromoVideoModalProps {
   isOpen: boolean;
   onClose: () => void;
-  agencyProfile?: AgencyProfile;
+  agencyProfile?: AgencyProfile | null;
 }
 
 interface Scene {
@@ -48,7 +49,7 @@ const SCENES: Scene[] = [
     duration: 8,
     badge: 'Problème Agence',
     title: 'Vous passez encore 10 heures par semaine sur les fiches de paie ?',
-    subtitle: 'Calculs de taux d\'effort, bulletins falsifiés, périodes d\'essai masquées...',
+    subtitle: 'Calculs manuels de solvabilité, bulletins falsifiés, périodes d\'essai masquées...',
     voiceoverFr:
       'En tant qu\'agent immobilier, vous recevez des dizaines de candidatures par jour. Calculer les 33% de solvabilité et traquer les périodes d\'essai masquées vous fait perdre un temps précieux.',
     visualDescription:
@@ -58,7 +59,7 @@ const SCENES: Scene[] = [
   },
   {
     id: 2,
-    duration: 10,
+    duration: 9,
     badge: 'Solution IA',
     title: 'ImmoAI qualifie chaque dossier locatif en 3 secondes chrono.',
     subtitle: 'Intelligence artificielle spécialisée pour le marché locatif français.',
@@ -113,68 +114,75 @@ const SCENES: Scene[] = [
 export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   isOpen,
   onClose,
-  agencyProfile = DEFAULT_AGENCY_PROFILE,
+  agencyProfile,
 }) => {
+  const safeProfile = {
+    name: agencyProfile?.name || DEFAULT_AGENCY_PROFILE.name,
+    managerName: agencyProfile?.managerName || DEFAULT_AGENCY_PROFILE.managerName,
+    siret: agencyProfile?.siret || DEFAULT_AGENCY_PROFILE.siret,
+    city: agencyProfile?.city || DEFAULT_AGENCY_PROFILE.city,
+    phone: agencyProfile?.phone || DEFAULT_AGENCY_PROFILE.phone,
+    email: agencyProfile?.email || DEFAULT_AGENCY_PROFILE.email,
+  };
+
   const [activeTab, setActiveTab] = useState<'video_player' | 'scripts_social' | 'outreach_email'>('video_player');
   const [currentSceneIdx, setCurrentSceneIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
   const [progress, setProgress] = useState(0); // 0 to 100 in current scene
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
-
   if (!isOpen) return null;
 
-  const currentScene = SCENES[currentSceneIdx];
+  const validIndex = Math.max(0, Math.min(currentSceneIdx, SCENES.length - 1));
+  const currentScene = SCENES[validIndex] || SCENES[0];
 
-  // Speech synthesis in French
-  const speakScene = (text: string) => {
-    if (isMuted || typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  // Safe voice synthesis without crashing in iframes or mobile
+  const safeSpeak = (text: string) => {
+    if (!isAudioEnabled) return;
     try {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fr-FR';
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      speechSynthRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
-    } catch (e) {
-      console.error('Speech synthesis error:', e);
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window && (window as any).SpeechSynthesisUtterance) {
+        window.speechSynthesis.cancel();
+        const utterance = new (window as any).SpeechSynthesisUtterance(text);
+        utterance.lang = 'fr-FR';
+        utterance.rate = 1.05;
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (err) {
+      // Audio failed silently without crashing UI
     }
   };
 
-  const stopSpeech = () => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
+  const safeStopAudio = () => {
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    } catch (e) {}
   };
 
-  // Video playback timer loop
+  // Video loop timer
   useEffect(() => {
-    let interval: any = null;
+    let timer: any = null;
 
     if (isPlaying) {
-      // Trigger voiceover when scene starts
-      if (progress === 0 && !isMuted) {
-        speakScene(currentScene.voiceoverFr);
+      if (progress === 0 && isAudioEnabled) {
+        safeSpeak(currentScene.voiceoverFr);
       }
 
       const stepMs = 100;
-      const totalSteps = (currentScene.duration * 1000) / stepMs;
+      const totalSteps = ((currentScene.duration || 8) * 1000) / stepMs;
       const increment = 100 / totalSteps;
 
-      interval = setInterval(() => {
+      timer = setInterval(() => {
         setProgress((prev) => {
           if (prev + increment >= 100) {
-            // Move to next scene
             if (currentSceneIdx < SCENES.length - 1) {
-              setCurrentSceneIdx((curr) => curr + 1);
+              setCurrentSceneIdx((c) => c + 1);
               return 0;
             } else {
-              // End reached
               setIsPlaying(false);
-              stopSpeech();
+              safeStopAudio();
               return 100;
             }
           }
@@ -182,17 +190,16 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
         });
       }, stepMs);
     } else {
-      stopSpeech();
+      safeStopAudio();
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (timer) clearInterval(timer);
     };
-  }, [isPlaying, currentSceneIdx, currentScene.duration, isMuted]);
+  }, [isPlaying, currentSceneIdx, isAudioEnabled]);
 
-  const handlePlayToggle = () => {
+  const handleTogglePlay = () => {
     if (!isPlaying && progress >= 100 && currentSceneIdx === SCENES.length - 1) {
-      // Reset to beginning
       setCurrentSceneIdx(0);
       setProgress(0);
     }
@@ -200,31 +207,35 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   };
 
   const handleRestart = () => {
-    stopSpeech();
+    safeStopAudio();
     setCurrentSceneIdx(0);
     setProgress(0);
     setIsPlaying(true);
-    if (!isMuted) {
-      speakScene(SCENES[0].voiceoverFr);
+    if (isAudioEnabled) {
+      safeSpeak(SCENES[0].voiceoverFr);
     }
   };
 
   const handleSelectScene = (idx: number) => {
-    stopSpeech();
+    safeStopAudio();
     setCurrentSceneIdx(idx);
     setProgress(0);
-    if (isPlaying && !isMuted) {
-      speakScene(SCENES[idx].voiceoverFr);
+    if (isPlaying && isAudioEnabled) {
+      safeSpeak(SCENES[idx].voiceoverFr);
     }
   };
 
-  const handleCopy = (text: string, id: string) => {
-    navigator.clipboard?.writeText?.(text);
+  const handleCopyText = (text: string, id: string) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+    } catch (e) {}
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2500);
   };
 
-  // Pre-formatted viral copy for LinkedIn / TikTok / Instagram Reels
+  // Pre-formatted viral copy for LinkedIn
   const linkedInPost = `🚀 Agents immobiliers et gestionnaires locatifs : combien d'heures par semaine perdez-vous à éplucher des fiches de paie ?
 
 Entre le calcul des 33% de taux d'effort, la détection des périodes d'essai masquées et les risques de rejet par votre assurance GLI, la qualification manuelle d'un dossier locataire prend en moyenne 25 minutes.
@@ -242,42 +253,45 @@ Entre le calcul des 33% de taux d'effort, la détection des périodes d'essai ma
 
 #Proptech #Immobilier #GestionLocative #LoiALUR #IntelligenceArtificielle #AgencesImmobilieres`;
 
+  // Script Reels / TikTok
   const scriptReelsTikTok = `[SCRIPT VIDÉO VIRALE REELS / TIKTOK / SHORTS - 45 SECONDES]
 
 🎬 PLAN 1 (0-5s) - ACCROCHE :
 (Visuel : L'agent montre l'écran de son ordinateur avec 30 emails de fiches de paie)
-Voix-off / Facecam : « Si tu travailles en agence immobilière, arrête immédiatement de calculer le taux d'effort des locataires à la main. »
+Voix-off : « Si vous travaillez en agence immobilière, arrêtez immédiatement de calculer la solvabilité des locataires à la main. »
 
 🎬 PLAN 2 (5-15s) - LE PROBLÈME :
 (Texte dynamique à l'écran : 10h perdues par semaine)
-Voix-off : « Vérifier le net avant impôt, chercher si la période d'essai est validée, calculer si les 3x le loyer passent pour la GLI... Ça te prend 20 minutes par candidat. »
+Voix-off : « Vérifier le Net avant impôt, chercher si la période d'essai est validée, calculer si les 3x le loyer passent pour la GLI... Ça prend 25 minutes par candidat ! »
 
 🎬 PLAN 3 (15-30s) - LA DÉMONSTRATION IMMOAI :
 (Visuel : Enregistrement d'écran d'ImmoAI avec glisser-déposer de la fiche de paie)
-Voix-off : « Regarde ça : je glisse la fiche de paie sur ImmoAI... 1, 2, 3 secondes : le salaire net est extrait, le taux d'effort est calculé, et le dossier est validé conforme Garantie Loyers Impayés ! »
+Voix-off : « Avec ImmoAI, vous glissez la fiche de paie... et en 3 secondes chrono, l'IA extrait le salaire net, vérifie l'ancienneté et valide la conformité Garantie Loyers Impayés ! »
 
 🎬 PLAN 4 (30-40s) - LE RAPPORT PROPRIÉTAIRE :
 (Visuel : Clic sur « Générer le rapport PDF », le document certifié A4 apparaît)
-Voix-off : « Et le truc fou ? En un clic, j'exporte le rapport PDF certifié avec le logo de mon agence pour rassurer mon propriétaire bailleur. »
+Voix-off : « Et en un clic, j'exporte le rapport PDF certifié avec le logo et le SIRET de mon agence pour rassurer mon propriétaire bailleur. »
 
 🎬 PLAN 5 (40-45s) - CALL TO ACTION :
-Voix-off : « Le lien est dans ma bio ou sur immoai.fr, il y a 14 jours d'essai gratuit pour les pros. Fonce tester ! »`;
+Voix-off : « Rendez-vous sur immoai.fr pour profiter de 14 jours d'essai gratuit sans engagement ! »`;
 
-  const outreachMessageWhatsApp = `Bonjour Monsieur/Madame,
+  // Message WhatsApp / Email
+  const outreachMessageWhatsApp = `Bonjour,
 
-Je me permets de vous contacter car je sais que dans votre agence ${agencyProfile.name || 'immobilière'}, la sélection des dossiers locataires prend un temps considérable à vos négociateurs.
+Je me permets de vous contacter car je sais que dans votre agence ${safeProfile.name}, la vérification des dossiers locataires prend un temps considérable à vos négociateurs.
 
-Nous avons développé ImmoAI (https://immoai.fr), une plateforme d'intelligence artificielle dédiée aux agences immobilières françaises :
-• Analyse d'un bulletin de paie en 3 secondes (extraction du Net avant impôt, détection de la période d'essai et calcul du ratio 33% Loi ALUR).
-• Un portail candidat en ligne à intégrer directement dans vos annonces SeLoger / Leboncoin.
-• Génération en 1 clic d'un Rapport Propriétaire A4 certifié avec le nom et le SIRET de votre cabinet.
+Nous avons développé ImmoAI (https://immoai.fr), une solution d'IA dédiée aux agences immobilières françaises :
+• Analyse d'une fiche de paie en 3 secondes (extraction du Net avant impôt, audit période d'essai et ratio 33% Loi ALUR).
+• Un portail de dépôt en ligne pour vos annonces (SeLoger, Leboncoin).
+• Génération en 1 clic d'un Rapport Propriétaire certifié A4 aux coordonnées et SIRET de votre agence.
 
 Nous offrons actuellement 14 jours d'essai gratuit sans engagement pour tester l'outil sur vos dossiers en cours.
 
-Seriez-vous disponible pour une rapide démonstration de 3 minutes en visio cette semaine ?
+Seriez-vous disponible pour une rapide démonstration de 3 minutes cette semaine ?
 
 Bien cordialement,
-L'équipe ImmoAI`;
+L'équipe ImmoAI
+Site web : https://immoai.fr`;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
@@ -291,7 +305,7 @@ L'équipe ImmoAI`;
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-lg sm:text-xl font-black text-white">
-                  Studio Vidéo Publicitaire & Kit Commercial
+                  Studio Vidéo Démo & Kit Commercial
                 </h2>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold">
                   B2B Agences
@@ -305,7 +319,7 @@ L'équipe ImmoAI`;
 
           <button
             onClick={() => {
-              stopSpeech();
+              safeStopAudio();
               onClose();
             }}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
@@ -353,7 +367,7 @@ L'équipe ImmoAI`;
           </button>
         </div>
 
-        {/* Tab 1: Interactive Video Player */}
+        {/* Tab 1: Video Player */}
         {activeTab === 'video_player' && (
           <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
             {/* The Animated Video Screen */}
@@ -365,7 +379,7 @@ L'équipe ImmoAI`;
                     {currentScene.badge}
                   </span>
                   <span className="text-xs text-slate-400 font-mono">
-                    Scène {currentSceneIdx + 1} / {SCENES.length}
+                    Scène {currentScene.id} / {SCENES.length}
                   </span>
                 </div>
 
@@ -429,7 +443,7 @@ L'équipe ImmoAI`;
                       <FileText className="w-7 h-7 text-indigo-400 shrink-0" />
                       <div>
                         <strong className="text-white block">Rapport Officiel Bailleur (Format A4) :</strong>
-                        <span>Signé numériquement pour {agencyProfile.name || 'votre cabinet'}.</span>
+                        <span>Signé numériquement pour {safeProfile.name}.</span>
                       </div>
                     </div>
                   )}
@@ -471,7 +485,7 @@ L'équipe ImmoAI`;
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center space-x-3">
                 <button
-                  onClick={handlePlayToggle}
+                  onClick={handleTogglePlay}
                   className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex items-center space-x-2 cursor-pointer shadow-lg shadow-emerald-500/20"
                 >
                   {isPlaying ? (
@@ -496,25 +510,25 @@ L'équipe ImmoAI`;
                 </button>
 
                 <button
-                  onClick={() => setIsMuted(!isMuted)}
+                  onClick={() => setIsAudioEnabled(!isAudioEnabled)}
                   className={`p-2.5 rounded-xl text-xs transition cursor-pointer ${
-                    isMuted
-                      ? 'bg-rose-950/60 text-rose-300 border border-rose-800'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                    !isAudioEnabled
+                      ? 'bg-slate-800 text-slate-400 hover:text-white'
+                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
                   }`}
-                  title={isMuted ? 'Activer la voix-off en français' : 'Couper le son'}
+                  title={isAudioEnabled ? 'Désactiver la voix-off' : 'Activer la voix-off en français'}
                 >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+                  {isAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
                 </button>
               </div>
 
               {/* Timeline Scene Selector */}
-              <div className="flex items-center space-x-1.5">
+              <div className="flex items-center space-x-1.5 overflow-x-auto">
                 {SCENES.map((scene, idx) => (
                   <button
                     key={scene.id}
                     onClick={() => handleSelectScene(idx)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${
                       currentSceneIdx === idx
                         ? 'bg-emerald-500 text-slate-950 font-black'
                         : 'bg-slate-800 text-slate-400 hover:text-white'
@@ -527,7 +541,7 @@ L'équipe ImmoAI`;
             </div>
 
             {/* Instruction to record */}
-            <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800/40 text-xs text-emerald-200 flex items-center justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800/40 text-xs text-emerald-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center space-x-2">
                 <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>
@@ -535,7 +549,12 @@ L'équipe ImmoAI`;
                 </span>
               </div>
               <button
-                onClick={() => handleCopy(SCENES.map((s) => `[SCÈNE ${s.id} - ${s.badge}]\n${s.voiceoverFr}`).join('\n\n'), 'all_script')}
+                onClick={() =>
+                  handleCopyText(
+                    SCENES.map((s) => `[SCÈNE ${s.id} - ${s.badge}]\n${s.voiceoverFr}`).join('\n\n'),
+                    'all_script'
+                  )
+                }
                 className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold shrink-0 transition flex items-center gap-1.5 cursor-pointer text-xs"
               >
                 {copiedId === 'all_script' ? (
@@ -565,7 +584,7 @@ L'équipe ImmoAI`;
                   <h4 className="text-sm font-bold text-white">Post LinkedIn Pro (Ciblage : Directeurs d'Agences & Négociateurs)</h4>
                 </div>
                 <button
-                  onClick={() => handleCopy(linkedInPost, 'linkedin')}
+                  onClick={() => handleCopyText(linkedInPost, 'linkedin')}
                   className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   {copiedId === 'linkedin' ? (
@@ -595,7 +614,7 @@ L'équipe ImmoAI`;
                   <h4 className="text-sm font-bold text-white">Script Vidéo Verticale Format 9:16 (Instagram Reels / TikTok / Shorts)</h4>
                 </div>
                 <button
-                  onClick={() => handleCopy(scriptReelsTikTok, 'reels')}
+                  onClick={() => handleCopyText(scriptReelsTikTok, 'reels')}
                   className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   {copiedId === 'reels' ? (
@@ -631,7 +650,7 @@ L'équipe ImmoAI`;
                   </p>
                 </div>
                 <button
-                  onClick={() => handleCopy(outreachMessageWhatsApp, 'outreach')}
+                  onClick={() => handleCopyText(outreachMessageWhatsApp, 'outreach')}
                   className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
                 >
                   {copiedId === 'outreach' ? (
@@ -651,21 +670,6 @@ L'équipe ImmoAI`;
               <pre className="p-4 rounded-xl bg-slate-950 text-xs text-slate-300 font-sans whitespace-pre-wrap border border-slate-800 leading-relaxed">
                 {outreachMessageWhatsApp}
               </pre>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-2">
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                  <strong className="text-emerald-400 block">Taux d'ouverture :</strong>
-                  <span className="text-slate-300">Très élevé car vous parlez de leur plus grande douleur (les fiches de paie).</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                  <strong className="text-emerald-400 block">Offre irrésistible :</strong>
-                  <span className="text-slate-300">14 jours d'essai sans carte bancaire requise.</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                  <strong className="text-emerald-400 block">ROI immédiat :</strong>
-                  <span className="text-slate-300">79 €/mois rentabilisé en un seul dossier accepté.</span>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -677,7 +681,7 @@ L'équipe ImmoAI`;
           </span>
           <button
             onClick={() => {
-              stopSpeech();
+              safeStopAudio();
               onClose();
             }}
             className="px-5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-white transition cursor-pointer"
