@@ -16,6 +16,8 @@ interface NavbarProps {
   currentTab: 'dashboard' | 'scanner' | 'candidate-portal' | 'landing';
   setCurrentTab: (tab: 'dashboard' | 'scanner' | 'candidate-portal' | 'landing') => void;
   candidateCount: number;
+  agencyProfile?: { name: string; managerName: string };
+  onOpenAgencyProfile?: () => void;
   onOpenGuide: () => void;
   onOpenBilling: () => void;
   onOpenDiagnostics: () => void;
@@ -26,6 +28,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   setCurrentTab,
   candidateCount,
+  agencyProfile,
+  onOpenAgencyProfile,
   onOpenGuide,
   onOpenBilling,
   onOpenDiagnostics,
@@ -114,8 +118,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           </nav>
 
-          {/* Action Tools: Billing, Diagnostics, Feedback, Dev Guide */}
+          {/* Action Tools: Agency Profile, Billing, Diagnostics, Feedback, Dev Guide */}
           <div className="flex items-center space-x-1.5 sm:space-x-2">
+            {onOpenAgencyProfile && (
+              <button
+                onClick={onOpenAgencyProfile}
+                className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 hover:bg-slate-700 text-xs font-bold transition cursor-pointer"
+                title="Gérer le nom, le SIRET et le responsable de mon agence"
+              >
+                <Building2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden xl:inline">{agencyProfile?.name ? agencyProfile.name.slice(0, 18) + (agencyProfile.name.length > 18 ? '...' : '') : 'Mon Agence'}</span>
+                <span className="xl:hidden">Agence</span>
+              </button>
+            )}
+
             <button
               onClick={onOpenDiagnostics}
               className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25 text-xs font-bold transition cursor-pointer shadow-sm shadow-emerald-500/10"

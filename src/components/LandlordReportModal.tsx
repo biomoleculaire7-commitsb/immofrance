@@ -21,22 +21,24 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { CandidateDossier, Property } from '../types.ts';
+import { CandidateDossier, Property, AgencyProfile, DEFAULT_AGENCY_PROFILE } from '../types.ts';
 
 interface LandlordReportModalProps {
   candidate: CandidateDossier | null;
   property?: Property;
+  agencyProfile?: AgencyProfile;
   onClose: () => void;
 }
 
 export const LandlordReportModal: React.FC<LandlordReportModalProps> = ({
   candidate,
   property,
+  agencyProfile = DEFAULT_AGENCY_PROFILE,
   onClose,
 }) => {
   const [landlordName, setLandlordName] = useState('M. & Mme les Propriétaires');
-  const [managerName, setManagerName] = useState('Jean Dupont');
-  const [managerRole, setManagerRole] = useState('Responsable Gestion Locative');
+  const [managerName, setManagerName] = useState(agencyProfile.managerName || 'Jean Dupont');
+  const [managerRole, setManagerRole] = useState(agencyProfile.managerRole || 'Responsable Gestion Locative');
   const [customManagerNote, setCustomManagerNote] = useState(
     'Candidat très motivé présentant d\'excellentes garanties financières. Dossier conforme aux exigences de solvabilité standard et aux conditions de votre contrat d\'assurance.'
   );
@@ -117,7 +119,7 @@ export const LandlordReportModal: React.FC<LandlordReportModalProps> = ({
       `• Score de solvabilité ImmoAI : ${candidate.score}/100 - ${candidate.status === 'ELIGIBLE' ? 'ÉLIGIBLE' : 'AVEC GARANT'}\n\n` +
       `Note du gestionnaire :\n${customManagerNote}\n\n` +
       `Le rapport officiel complet au format PDF est disponible sur demande.\n\n` +
-      `Bien cordialement,\n${managerName} - ${managerRole}\nCabinet Haussmann Immobilier`
+      `Bien cordialement,\n${managerName} - ${managerRole}\n${agencyProfile.name || 'Cabinet Immobilier'}`
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
@@ -244,18 +246,23 @@ export const LandlordReportModal: React.FC<LandlordReportModalProps> = ({
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-sm">
-                    H
+                    {agencyProfile.name ? agencyProfile.name.charAt(0).toUpperCase() : 'A'}
                   </div>
                   <span className="text-xl font-black tracking-tight text-slate-950 uppercase">
-                    Cabinet Haussmann Immobilier
+                    {agencyProfile.name || 'Cabinet Immobilier'}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-medium">
-                  Service Gestion Locative & Administration de Biens • Carte Professionnelle G n° 7501 2024
+                  Service Gestion Locative & Administration de Biens • Carte Professionnelle : {agencyProfile.cartePro || 'CPI 7501 2024'}
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  14 Avenue de l'Opéra, 75001 Paris • Tél : 01 42 68 50 00 • gestion@haussmann-immo.fr
+                  {agencyProfile.address || 'Siège social'} • {agencyProfile.postalCode} {agencyProfile.city} • Tél : {agencyProfile.phone} • {agencyProfile.email}
                 </p>
+                {agencyProfile.siret && (
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    SIRET : {agencyProfile.siret}
+                  </p>
+                )}
               </div>
 
               <div className="text-right">
@@ -534,7 +541,7 @@ export const LandlordReportModal: React.FC<LandlordReportModalProps> = ({
             {/* Signatures & Certification Footer */}
             <div className="pt-4 border-t border-slate-200 flex justify-between items-end text-xs text-slate-600">
               <div>
-                <p className="font-bold text-slate-900">Pour le Cabinet Haussmann Immobilier :</p>
+                <p className="font-bold text-slate-900">Pour {agencyProfile.name || 'le Cabinet'} :</p>
                 <p className="text-slate-500">{managerName}</p>
                 <p className="text-[11px] text-slate-400">{managerRole}</p>
                 <div className="mt-2 text-[10px] text-emerald-700 font-mono">

@@ -11,7 +11,9 @@ import { SubscriptionBillingModal } from './components/SubscriptionBillingModal.
 import { PaywallModal } from './components/PaywallModal.tsx';
 import { FeedbackModal } from './components/FeedbackModal.tsx';
 import { DiagnosticsCenterModal } from './components/DiagnosticsCenterModal.tsx';
-import { CandidateDossier, Property } from './types.ts';
+import { AgencyProfileModal } from './components/AgencyProfileModal.tsx';
+import { AddPropertyModal } from './components/AddPropertyModal.tsx';
+import { CandidateDossier, Property, AgencyProfile, DEFAULT_AGENCY_PROFILE } from './types.ts';
 import { CheckCircle2, X, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 
 const DEFAULT_PROPERTIES: Property[] = [
@@ -113,6 +115,13 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'scanner' | 'candidate-portal' | 'landing'>('scanner');
   const [properties, setProperties] = useState<Property[]>(DEFAULT_PROPERTIES);
   const [candidates, setCandidates] = useState<CandidateDossier[]>([]);
+  const [agencyProfile, setAgencyProfile] = useState<AgencyProfile>(() => {
+    try {
+      const saved = localStorage.getItem('immoai_agency_profile');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return DEFAULT_AGENCY_PROFILE;
+  });
   const [inspectedCandidate, setInspectedCandidate] = useState<CandidateDossier | null>(null);
   const [reportCandidate, setReportCandidate] = useState<CandidateDossier | null>(null);
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
@@ -120,6 +129,8 @@ export default function App() {
   const [isPaywallOpen, setIsPaywallOpen] = useState<boolean>(false);
   const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState<boolean>(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState<boolean>(false);
+  const [isAgencyProfileOpen, setIsAgencyProfileOpen] = useState<boolean>(false);
+  const [isAddPropertyOpen, setIsAddPropertyOpen] = useState<boolean>(false);
   const [feedbackSnippet, setFeedbackSnippet] = useState<string | undefined>(undefined);
   const [portalDefaultPropId, setPortalDefaultPropId] = useState<string | undefined>(undefined);
   const [notificationBanner, setNotificationBanner] = useState<{
@@ -128,7 +139,7 @@ export default function App() {
     type: 'success' | 'info';
   } | null>(null);
 
-  // Initial fetch of properties and candidates
+  // Initial fetch of properties, candidates and agency profile
   useEffect(() => {
     // Check URL parameters if opened with ?tab=candidate-portal or ?billing_success=true
     const urlParams = new URLSearchParams(window.location.search);
@@ -157,16 +168,132 @@ export default function App() {
       setCurrentTab('dashboard');
     }
 
+    fetch('/api/agency/profile')
+      .then((res) => res.json())
+      .then((data: AgencyProfile) => {
+        if (data && data.name) {
+          setAgencyProfile(data);
+          try {
+            localStorage.setItem('immoai_agency_profile', JSON.stringify(data));
+          } catch (e) {}
+        }
+      })
+      .catch((err) => console.error('Failed to fetch agency profile:', err));
+
     fetch('/api/properties')
       .then((res) => res.json())
-      .then((data: Property[]) => setProperties(data))
+      .then((data: Property[]) => {
+        if (Array.isArray(data)) setProperties(data);
+      })
       .catch((err) => console.error('Failed to fetch properties:', err));
 
     fetch('/api/candidates')
       .then((res) => res.json())
-      .then((data: CandidateDossier[]) => setCandidates(data))
+      .then((data: CandidateDossier[]) => {
+        if (Array.isArray(data)) setCandidates(data);
+      })
       .catch((err) => console.error('Failed to fetch candidates:', err));
   }, []);
+
+  // Save agency profile
+  const handleSaveAgencyProfile = async (updated: AgencyProfile) => {
+    setAgencyProfile(updated);
+    try {
+      localStorage.setItem('immoai_agency_profile', JSON.stringify(updated));
+      await fetch('/api/agency/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+    } catch (err) {
+      console.error('Failed to save agency profile:', err);
+    }
+    setNotificationBanner({
+      title: 'Coordonnées de l\'agence enregistrées',
+      message: `Votre agence « ${updated.name} » a été mise à jour avec succès.`,
+      type: 'success',
+    });
+  };
+
+  // Clear all candidates (mode réel / vider les exemples)
+  const handleClearAllCandidates = async () => {
+    try {
+      await fetch('/api/candidates/clear-all', { method: 'DELETE' });
+    } catch (err) {
+      console.error(err);
+    }
+    setCandidates([]);
+    setNotificationBanner({
+      title: 'Dossiers d\'exemples supprimés',
+      message: 'Votre tableau de bord est désormais vierge et prêt à recevoir les dossiers de vos vrais candidats.',
+      type: 'info',
+    });
+  };
+
+  // Reset demo candidates
+  const handleResetCandidates = async () => {
+    try {
+      const res = await fetch('/api/candidates/reset-samples', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setCandidates(data.candidates);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setNotificationBanner({
+      title: 'Exemples de test rechargés',
+      message: 'Les 4 candidatures de démonstration sont prêtes pour vos tests.',
+      type: 'info',
+    });
+  };
+
+  // Add real property
+  const handleAddProperty = async (newProp: Property) => {
+    try {
+      const res = await fetch('/api/properties', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProp),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setProperties((prev) => [...prev, created]);
+      } else {
+        setProperties((prev) => [...prev, newProp]);
+      }
+    } catch (err) {
+      setProperties((prev) => [...prev, newProp]);
+    }
+    setNotificationBanner({
+      title: 'Bien immobilier enregistré',
+      message: `Le logement « ${newProp.title} » (${newProp.rentCC} €/mois) a été ajouté à votre portefeuille.`,
+      type: 'success',
+    });
+  };
+
+  // Delete property
+  const handleDeleteProperty = async (propId: string) => {
+    try {
+      await fetch(`/api/properties/${propId}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error(err);
+    }
+    setProperties((prev) => prev.filter((p) => p.id !== propId));
+  };
+
+  // Reset demo properties
+  const handleResetProperties = async () => {
+    try {
+      const res = await fetch('/api/properties/reset-samples', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setProperties(data.properties);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Add new candidate from scanner or portal
   const handleAddCandidate = async (candidateData: any) => {
@@ -241,6 +368,8 @@ export default function App() {
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         candidateCount={candidates.length}
+        agencyProfile={agencyProfile}
+        onOpenAgencyProfile={() => setIsAgencyProfileOpen(true)}
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenBilling={() => setIsBillingOpen(true)}
         onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
@@ -280,6 +409,13 @@ export default function App() {
             <DashboardView
               candidates={candidates}
               properties={properties}
+              agencyProfile={agencyProfile}
+              onOpenAgencyProfile={() => setIsAgencyProfileOpen(true)}
+              onOpenAddProperty={() => setIsAddPropertyOpen(true)}
+              onDeleteProperty={handleDeleteProperty}
+              onClearAllCandidates={handleClearAllCandidates}
+              onResetCandidates={handleResetCandidates}
+              onResetProperties={handleResetProperties}
               onSelectCandidateToInspect={(candidate) => setInspectedCandidate(candidate)}
               onUpdateCandidateStatus={handleUpdateStatus}
               onDeleteCandidate={handleDeleteCandidate}
@@ -310,6 +446,7 @@ export default function App() {
           {currentTab === 'candidate-portal' && (
             <CandidatePortalView
               properties={properties}
+              agencyProfile={agencyProfile}
               defaultPropertyId={portalDefaultPropId}
               onCandidateSubmitted={(cand) => {
                 handleAddCandidate(cand);
@@ -384,10 +521,11 @@ export default function App() {
       <LandlordReportModal
         candidate={reportCandidate}
         property={properties.find((p) => p.id === reportCandidate?.propertyId)}
+        agencyProfile={agencyProfile}
         onClose={() => setReportCandidate(null)}
       />
 
-      {/* Developer Architecture Guide Modal in Arabic */}
+      {/* Developer Architecture & Technical Documentation Modal */}
       <DeveloperGuideModal
         isOpen={isGuideOpen}
         onClose={() => setIsGuideOpen(false)}
@@ -441,6 +579,21 @@ export default function App() {
         isOpen={isFeedbackOpen}
         onClose={() => setIsFeedbackOpen(false)}
         prefilledSnippet={feedbackSnippet}
+      />
+
+      {/* Agency Identity & Profile Modal */}
+      <AgencyProfileModal
+        isOpen={isAgencyProfileOpen}
+        onClose={() => setIsAgencyProfileOpen(false)}
+        profile={agencyProfile}
+        onSaveProfile={handleSaveAgencyProfile}
+      />
+
+      {/* Add New Rental Property Modal */}
+      <AddPropertyModal
+        isOpen={isAddPropertyOpen}
+        onClose={() => setIsAddPropertyOpen(false)}
+        onAddProperty={handleAddProperty}
       />
     </div>
   );

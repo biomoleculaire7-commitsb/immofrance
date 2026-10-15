@@ -43,7 +43,7 @@ interface Property {
   image: string;
 }
 
-const properties: Property[] = [
+const INITIAL_PROPERTIES: Property[] = [
   {
     id: 'prop-1',
     title: 'Appartement T2 lumineux - Proche Métro Charonne',
@@ -120,8 +120,40 @@ export interface CandidateDossier {
   analyzedViaAI: boolean;
 }
 
+let properties: Property[] = JSON.parse(JSON.stringify(INITIAL_PROPERTIES));
+
+export interface AgencyProfile {
+  name: string;
+  managerName: string;
+  managerRole: string;
+  email: string;
+  phone: string;
+  siret: string;
+  cartePro: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  gliPartner: string;
+  portalWelcomeMessage?: string;
+}
+
+let agencyProfile: AgencyProfile = {
+  name: 'Cabinet Haussmann Immobilier',
+  managerName: 'Jean-Marc Dupont',
+  managerRole: 'Directeur Gestion Locative',
+  email: 'contact@haussmann-gestion.fr',
+  phone: '01 42 68 50 00',
+  siret: '842 190 321 00024',
+  cartePro: 'CPI 7501 2024 000 012 345 (Gestion & Transaction)',
+  address: '14 Avenue de l\'Opéra',
+  city: 'Paris',
+  postalCode: '75001',
+  gliPartner: 'Allianz GLI & Garantie Visale',
+  portalWelcomeMessage: 'Déposez vos pièces justificatives en toute sécurité. Vos informations sont analysées en temps réel selon les critères de solvabilité de la Loi ALUR.',
+};
+
 // Initial realistic French tenant application records
-let candidates: CandidateDossier[] = [
+const INITIAL_CANDIDATES: CandidateDossier[] = [
   {
     id: 'cand-1',
     propertyId: 'prop-1',
@@ -223,6 +255,8 @@ let candidates: CandidateDossier[] = [
     analyzedViaAI: true,
   },
 ];
+
+let candidates: CandidateDossier[] = JSON.parse(JSON.stringify(INITIAL_CANDIDATES));
 
 // Sample realistic French pay slip texts for testing & demonstration
 const sampleDocuments = [
@@ -357,10 +391,42 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Agency Profile Endpoints
+app.get('/api/agency/profile', (req, res) => {
+  res.json(agencyProfile);
+});
+
+app.post('/api/agency/profile', (req, res) => {
+  agencyProfile = { ...agencyProfile, ...req.body };
+  res.json({ success: true, profile: agencyProfile });
+});
+
+// Properties Endpoints
 app.get('/api/properties', (req, res) => {
   res.json(properties);
 });
 
+app.post('/api/properties', (req, res) => {
+  const newProp: Property = {
+    ...req.body,
+    id: req.body.id || `prop-${Date.now()}`,
+  };
+  properties.push(newProp);
+  res.status(201).json(newProp);
+});
+
+app.delete('/api/properties/:id', (req, res) => {
+  const { id } = req.params;
+  properties = properties.filter((p) => p.id !== id);
+  res.json({ success: true, id });
+});
+
+app.post('/api/properties/reset-samples', (req, res) => {
+  properties = JSON.parse(JSON.stringify(INITIAL_PROPERTIES));
+  res.json({ success: true, properties });
+});
+
+// Candidates Endpoints
 app.get('/api/candidates', (req, res) => {
   res.json(candidates);
 });
@@ -373,6 +439,16 @@ app.post('/api/candidates', (req, res) => {
   };
   candidates.unshift(newCandidate);
   res.status(201).json(newCandidate);
+});
+
+app.delete('/api/candidates/clear-all', (req, res) => {
+  candidates = [];
+  res.json({ success: true, count: 0, message: 'Tous les dossiers ont été supprimés.' });
+});
+
+app.post('/api/candidates/reset-samples', (req, res) => {
+  candidates = JSON.parse(JSON.stringify(INITIAL_CANDIDATES));
+  res.json({ success: true, count: candidates.length, candidates });
 });
 
 app.patch('/api/candidates/:id', (req, res) => {

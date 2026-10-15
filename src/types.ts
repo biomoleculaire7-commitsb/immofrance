@@ -68,3 +68,33 @@ export interface SampleDocument {
   description: string;
   content: string;
 }
+
+export interface AgencyProfile {
+  name: string;
+  managerName: string;
+  managerRole: string;
+  email: string;
+  phone: string;
+  siret: string;
+  cartePro: string;
+  address: string;
+  city: string;
+  postalCode: string;
+  gliPartner: string;
+  portalWelcomeMessage?: string;
+}
+
+export const DEFAULT_AGENCY_PROFILE: AgencyProfile = {
+  name: 'Cabinet Haussmann Immobilier',
+  managerName: 'Jean-Marc Dupont',
+  managerRole: 'Directeur Gestion Locative',
+  email: 'contact@haussmann-gestion.fr',
+  phone: '01 42 68 50 00',
+  siret: '842 190 321 00024',
+  cartePro: 'CPI 7501 2024 000 012 345 (Gestion & Transaction)',
+  address: '14 Avenue de l\'Opéra',
+  city: 'Paris',
+  postalCode: '75001',
+  gliPartner: 'Allianz GLI & Garantie Visale',
+  portalWelcomeMessage: 'Déposez vos pièces justificatives en toute sécurité. Vos informations sont analysées en temps réel selon les critères de solvabilité de la Loi ALUR.',
+};
