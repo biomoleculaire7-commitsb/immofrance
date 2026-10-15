@@ -10,6 +10,7 @@ import {
   CreditCard,
   Activity,
   MessageSquare,
+  Video,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -18,6 +19,7 @@ interface NavbarProps {
   candidateCount: number;
   agencyProfile?: { name: string; managerName: string };
   onOpenAgencyProfile?: () => void;
+  onOpenPromoVideo?: () => void;
   onOpenGuide: () => void;
   onOpenBilling: () => void;
   onOpenDiagnostics: () => void;
@@ -30,6 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   candidateCount,
   agencyProfile,
   onOpenAgencyProfile,
+  onOpenPromoVideo,
   onOpenGuide,
   onOpenBilling,
   onOpenDiagnostics,
@@ -129,6 +132,17 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Building2 className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="hidden xl:inline">{agencyProfile?.name ? agencyProfile.name.slice(0, 18) + (agencyProfile.name.length > 18 ? '...' : '') : 'Mon Agence'}</span>
                 <span className="xl:hidden">Agence</span>
+              </button>
+            )}
+
+            {onOpenPromoVideo && (
+              <button
+                onClick={onOpenPromoVideo}
+                className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 text-xs font-bold transition cursor-pointer shadow-sm shadow-emerald-500/10"
+                title="Studio Vidéo Démo Animée & Scripts Réseaux Sociaux"
+              >
+                <Video className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Vidéo & Kit Commercial</span>
               </button>
             )}
 

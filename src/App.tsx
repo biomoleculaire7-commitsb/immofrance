@@ -13,6 +13,7 @@ import { FeedbackModal } from './components/FeedbackModal.tsx';
 import { DiagnosticsCenterModal } from './components/DiagnosticsCenterModal.tsx';
 import { AgencyProfileModal } from './components/AgencyProfileModal.tsx';
 import { AddPropertyModal } from './components/AddPropertyModal.tsx';
+import { PromoVideoModal } from './components/PromoVideoModal.tsx';
 import { CandidateDossier, Property, AgencyProfile, DEFAULT_AGENCY_PROFILE } from './types.ts';
 import { CheckCircle2, X, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 
@@ -131,6 +132,7 @@ export default function App() {
   const [isFeedbackOpen, setIsFeedbackOpen] = useState<boolean>(false);
   const [isAgencyProfileOpen, setIsAgencyProfileOpen] = useState<boolean>(false);
   const [isAddPropertyOpen, setIsAddPropertyOpen] = useState<boolean>(false);
+  const [isPromoVideoOpen, setIsPromoVideoOpen] = useState<boolean>(false);
   const [feedbackSnippet, setFeedbackSnippet] = useState<string | undefined>(undefined);
   const [portalDefaultPropId, setPortalDefaultPropId] = useState<string | undefined>(undefined);
   const [notificationBanner, setNotificationBanner] = useState<{
@@ -370,6 +372,7 @@ export default function App() {
         candidateCount={candidates.length}
         agencyProfile={agencyProfile}
         onOpenAgencyProfile={() => setIsAgencyProfileOpen(true)}
+        onOpenPromoVideo={() => setIsPromoVideoOpen(true)}
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenBilling={() => setIsBillingOpen(true)}
         onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
@@ -484,6 +487,13 @@ export default function App() {
             </button>
             <span className="text-slate-600">|</span>
             <button
+              onClick={() => setIsPromoVideoOpen(true)}
+              className="text-emerald-300 hover:text-emerald-200 font-bold underline cursor-pointer"
+            >
+              Vidéo & Kit Commercial
+            </button>
+            <span className="text-slate-600">|</span>
+            <button
               onClick={() => {
                 setFeedbackSnippet(undefined);
                 setIsFeedbackOpen(true);
@@ -594,6 +604,13 @@ export default function App() {
         isOpen={isAddPropertyOpen}
         onClose={() => setIsAddPropertyOpen(false)}
         onAddProperty={handleAddProperty}
+      />
+
+      {/* Promotional Video Studio & Commercial Kit Modal */}
+      <PromoVideoModal
+        isOpen={isPromoVideoOpen}
+        onClose={() => setIsPromoVideoOpen(false)}
+        agencyProfile={agencyProfile}
       />
     </div>
   );
