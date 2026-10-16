@@ -26,6 +26,13 @@ import {
   Monitor,
   HelpCircle,
   TrendingUp,
+  MapPin,
+  ExternalLink,
+  Globe,
+  Search,
+  Mail,
+  Phone,
+  MessageCircle,
 } from 'lucide-react';
 import { AgencyProfile, DEFAULT_AGENCY_PROFILE } from '../types.ts';
 
@@ -131,7 +138,7 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   };
 
   // ALL HOOKS CALLED AT TOP LEVEL UNCONDITIONALLY (React Rules of Hooks)
-  const [activeTab, setActiveTab] = useState<'video_player' | 'scripts_social' | 'outreach_email' | 'objections'>('video_player');
+  const [activeTab, setActiveTab] = useState<'video_player' | 'scripts_social' | 'outreach_email' | 'objections' | 'targets_annuaire'>('video_player');
   const [formatMode, setFormatMode] = useState<'16:9' | '9:16'>('16:9');
   const [currentSceneIdx, setCurrentSceneIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -139,6 +146,10 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   const [progress, setProgress] = useState(0); // 0 to 100 in current scene
   const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [recipientEmail, setRecipientEmail] = useState<string>('');
+  const [recipientAgencyName, setRecipientAgencyName] = useState<string>('');
+  const [recipientPhone, setRecipientPhone] = useState<string>('');
+  const [customEmailMessage, setCustomEmailMessage] = useState<string>('');
 
   // References to keep speech synthesis alive & prevent Chrome garbage collection
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -406,22 +417,51 @@ Voix-off : « Et en un clic, j'exporte le rapport PDF certifié avec le logo et 
 Voix-off : « Rendez-vous sur immoai.fr pour profiter de 14 jours d'essai gratuit sans engagement ! »`;
 
   // Message WhatsApp / Email
-  const outreachMessageWhatsApp = `Bonjour,
+  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://immoai.fr';
 
-Je me permets de vous contacter car je sais que dans votre agence ${safeProfile.name}, la vérification des dossiers locataires prend un temps considérable à vos négociateurs.
+  const defaultOutreachMessage = `Bonjour,
 
-Nous avons développé ImmoAI (https://immoai.fr), une solution d'IA dédiée aux agences immobilières françaises :
+Je me permets de vous contacter car je sais que dans votre cabinet ${recipientAgencyName.trim() || 'immobilier'}, la vérification des dossiers locataires prend un temps considérable à vos négociateurs.
+
+Nous avons développé ImmoAI (${currentOrigin}), une solution d'intelligence artificielle dédiée aux agences immobilières françaises :
 • Analyse d'une fiche de paie en 3 secondes (extraction du Net avant impôt, audit période d'essai et ratio 33% Loi ALUR).
-• Un portail de dépôt en ligne pour vos annonces (SeLoger, Leboncoin).
+• Un portail de dépôt en ligne sécurisé pour vos annonces (SeLoger, Leboncoin).
 • Génération en 1 clic d'un Rapport Propriétaire certifié A4 aux coordonnées et SIRET de votre agence.
 
-Nous offrons actuellement 14 jours d'essai gratuit sans engagement pour tester l'outil sur vos dossiers en cours.
+Nous offrons actuellement 14 jours d'essai gratuit sans engagement pour tester l'outil sur vos dossiers en cours :
+👉 Découvrir la plateforme et tester un dossier : ${currentOrigin}
 
 Seriez-vous disponible pour une rapide démonstration de 3 minutes cette semaine ?
 
 Bien cordialement,
 L'équipe ImmoAI
-Site web : https://immoai.fr`;
+Site web : ${currentOrigin}`;
+
+  const effectiveEmailMessage = customEmailMessage || defaultOutreachMessage;
+
+  const handleOpenGmail = () => {
+    const subject = encodeURIComponent("Gain de 10h/semaine sur la gestion locative de votre agence");
+    const body = encodeURIComponent(effectiveEmailMessage);
+    const to = encodeURIComponent(recipientEmail.trim());
+    window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}`, '_blank');
+  };
+
+  const handleOpenMailto = () => {
+    const subject = encodeURIComponent("Gain de 10h/semaine sur la gestion locative de votre agence");
+    const body = encodeURIComponent(effectiveEmailMessage);
+    const to = encodeURIComponent(recipientEmail.trim());
+    window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+  };
+
+  const handleOpenWhatsApp = () => {
+    const text = encodeURIComponent(effectiveEmailMessage);
+    const cleanPhone = recipientPhone.replace(/[^0-9]/g, '');
+    if (cleanPhone) {
+      window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${text}`, '_blank');
+    } else {
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    }
+  };
 
   // Pitch téléphonique 30 secondes
   const pitchTelephone = `« Bonjour [Nom du Directeur], je vous appelle très brièvement au sujet de la gestion locative de votre agence.
@@ -475,7 +515,7 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
             }`}
           >
             <Play className="w-4 h-4" />
-            <span>Lecteur Vidéo Démo</span>
+            <span>1. Vidéo Démo</span>
           </button>
 
           <button
@@ -487,7 +527,7 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
             }`}
           >
             <Share2 className="w-4 h-4 text-emerald-400" />
-            <span>Scripts Sociaux (LinkedIn / TikTok)</span>
+            <span>2. Scripts Sociaux (LinkedIn/TikTok)</span>
           </button>
 
           <button
@@ -499,7 +539,7 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
             }`}
           >
             <Send className="w-4 h-4 text-indigo-400" />
-            <span>Démarchage (Email / WhatsApp)</span>
+            <span>3. Envoyer des Emails (Démarchage)</span>
           </button>
 
           <button
@@ -511,7 +551,19 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
             }`}
           >
             <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span>Argumentaire Anti-Objections</span>
+            <span>4. Anti-Objections</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('targets_annuaire')}
+            className={`pb-3 text-xs font-bold transition border-b-2 flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
+              activeTab === 'targets_annuaire'
+                ? 'border-emerald-400 text-emerald-400'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MapPin className="w-4 h-4 text-rose-400" />
+            <span>5. Annuaire & Adresses d'Agences</span>
           </button>
         </div>
 
@@ -862,35 +914,144 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
         {/* Tab 3: Direct Outreach for Agency Owners */}
         {activeTab === 'outreach_email' && (
           <div className="p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+            {/* Guide d'utilisation clair */}
+            <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-800/40 text-xs text-indigo-200 space-y-2">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+                <h4 className="font-bold text-white text-sm">
+                  Comment envoyer votre message ? (Envoi Direct en 1 Clic)
+                </h4>
+              </div>
+              <p className="leading-relaxed text-slate-300">
+                Vous n'avez pas besoin de chercher où coller votre message : renseignez simplement l'adresse email de l'agence ci-dessous et cliquez sur <strong>« Ouvrir avec Gmail »</strong> ou <strong>« WhatsApp »</strong>. Votre messagerie s'ouvre automatiquement avec le destinataire, l'objet, le texte complet et votre lien déjà insérés !
+              </p>
+            </div>
+
+            {/* Boîte d'Envoi Direct & Personnalisation */}
             <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-bold text-white">Message d'approche directe (Email ou WhatsApp aux patrons d'agences)</h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    À copier-coller pour démarcher les agences immobilières de votre ville
-                  </p>
+                <div className="flex items-center space-x-2">
+                  <Mail className="w-5 h-5 text-indigo-400" />
+                  <h4 className="text-sm font-bold text-white">
+                    Console d'Envoi Direct aux Agences
+                  </h4>
                 </div>
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2.5 py-0.5 rounded-full font-bold border border-indigo-500/30">
+                  Prêt à l'envoi
+                </span>
+              </div>
+
+              {/* Form Inputs for quick dispatch */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Email de l'agence destinataire :
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="ex: contact@agence-paris.fr"
+                    value={recipientEmail}
+                    onChange={(e) => setRecipientEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    Nom de l'agence (pour personnaliser) :
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="ex: ORPI Paris 11ème, Century 21..."
+                    value={recipientAgencyName}
+                    onChange={(e) => setRecipientAgencyName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 mb-1">
+                    WhatsApp de l'agent (Optionnel) :
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="ex: +33 6 12 34 56 78"
+                    value={recipientPhone}
+                    onChange={(e) => setRecipientPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-400"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons: Gmail, Mailto, WhatsApp, Copy */}
+              <div className="flex flex-wrap items-center gap-2 pt-2">
                 <button
-                  onClick={() => handleCopyText(outreachMessageWhatsApp, 'outreach')}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                  onClick={handleOpenGmail}
+                  className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-rose-600/20 transition cursor-pointer"
+                  title="Ouvre directement la boîte de rédaction Gmail avec le message déjà rédigé"
                 >
-                  {copiedId === 'outreach' ? (
+                  <Mail className="w-4 h-4" />
+                  <span>🚀 Ouvrir et Envoyer avec Gmail</span>
+                </button>
+
+                <button
+                  onClick={handleOpenMailto}
+                  className="px-3.5 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs flex items-center gap-2 transition cursor-pointer"
+                  title="Ouvre votre application de messagerie par défaut (Outlook, Apple Mail...)"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  <span>Ouvrir avec Outlook / Mail</span>
+                </button>
+
+                <button
+                  onClick={handleOpenWhatsApp}
+                  className="px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-600/20"
+                  title="Envoyer le message sur WhatsApp Web"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>💬 Envoyer sur WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={() => handleCopyText(effectiveEmailMessage, 'custom_outreach')}
+                  className="px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ml-auto"
+                >
+                  {copiedId === 'custom_outreach' ? (
                     <>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Message copié !</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Texte copié !</span>
                     </>
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5" />
-                      <span>Copier le message</span>
+                      <span>Copier le texte</span>
                     </>
                   )}
                 </button>
               </div>
 
-              <pre className="p-4 rounded-xl bg-slate-950 text-xs text-slate-300 font-sans whitespace-pre-wrap border border-slate-800 leading-relaxed">
-                {outreachMessageWhatsApp}
-              </pre>
+              {/* Editable Textarea */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-400">
+                    Texte du message (vous pouvez le modifier ou le coller ici si besoin) :
+                  </label>
+                  {customEmailMessage && (
+                    <button
+                      onClick={() => setCustomEmailMessage('')}
+                      className="text-[10px] text-slate-500 hover:text-emerald-400 underline cursor-pointer"
+                    >
+                      Rétablir le modèle par défaut
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  rows={10}
+                  value={effectiveEmailMessage}
+                  onChange={(e) => setCustomEmailMessage(e.target.value)}
+                  className="w-full p-4 rounded-xl bg-slate-950 text-xs text-slate-200 font-sans border border-slate-800 leading-relaxed focus:outline-none focus:border-indigo-400"
+                />
+              </div>
             </div>
 
             {/* Pitch téléphonique */}
@@ -899,7 +1060,7 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
                 <div>
                   <h4 className="text-sm font-bold text-white">Pitch Téléphonique Rapide (30 secondes chrono)</h4>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Pour appeler les agences locales et obtenir un test sans friction
+                    Pour appeler les agences locales et leur proposer d'essayer l'outil
                   </p>
                 </div>
                 <button
@@ -969,6 +1130,260 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
                 <p className="text-xs text-emerald-300 mt-2 font-medium">
                   <strong>Réponse gagnante :</strong> 79 € représente moins d'une heure de travail d'un négociateur. Si l'outil fait gagner 10 heures par semaine à l'équipe et évite un seul sinistre d'impayé (coût moyen : 8 000 €), le retour sur investissement est immédiat dès le premier mois.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 5: Où Envoyer & Annuaire Agences */}
+        {activeTab === 'targets_annuaire' && (
+          <div className="p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+            {/* Section 1: Les deux liens à envoyer */}
+            <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-4">
+              <div className="flex items-center space-x-2">
+                <Share2 className="w-5 h-5 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">
+                  1. Quels liens envoyer et à qui ?
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Lien B2B Agences */}
+                <div className="p-4 rounded-xl bg-slate-900 border border-emerald-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-400 uppercase tracking-wide">
+                      Pour les Directeurs d'Agences (B2B)
+                    </span>
+                    <button
+                      onClick={() => handleCopyText(window.location.origin, 'b2b_link')}
+                      className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition"
+                    >
+                      {copiedId === 'b2b_link' ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Copié !</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copier</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    Permet aux agences de tester le scanner IA, de voir la démo et d'activer leurs 14 jours d'essai gratuit.
+                  </p>
+                  <div className="p-2 rounded bg-slate-950 font-mono text-[11px] text-emerald-300 break-all border border-slate-800">
+                    {window.location.origin}
+                  </div>
+                </div>
+
+                {/* Lien Candidat B2C */}
+                <div className="p-4 rounded-xl bg-slate-900 border border-indigo-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wide">
+                      Pour les Candidats Locataires (Portail)
+                    </span>
+                    <button
+                      onClick={() => handleCopyText(`${window.location.origin}/?tab=candidate-portal`, 'portal_link')}
+                      className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex items-center gap-1 cursor-pointer transition"
+                    >
+                      {copiedId === 'portal_link' ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Copié !</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Copier</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-300">
+                    À insérer dans vos annonces <strong>SeLoger, Leboncoin, PAP</strong> pour que les candidats déposent leurs dossiers en ligne.
+                  </p>
+                  <div className="p-2 rounded bg-slate-950 font-mono text-[11px] text-indigo-300 break-all border border-slate-800">
+                    {window.location.origin}/?tab=candidate-portal
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Villes & Recherche Google Maps Directe */}
+            <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-4">
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-5 h-5 text-rose-400" />
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    2. Où trouver les adresses d'agences ? (Recherche par Ville)
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Cliquez sur une ville pour ouvrir Google Maps avec la liste des agences de gestion locative, leurs emails et numéros de téléphone :
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {[
+                  { name: 'Paris (75)', count: '4 500+ agences', query: 'Paris' },
+                  { name: 'Lyon (69)', count: '1 200+ agences', query: 'Lyon' },
+                  { name: 'Marseille (13)', count: '1 100+ agences', query: 'Marseille' },
+                  { name: 'Bordeaux (33)', count: '850+ agences', query: 'Bordeaux' },
+                  { name: 'Toulouse (31)', count: '750+ agences', query: 'Toulouse' },
+                  { name: 'Lille (59)', count: '650+ agences', query: 'Lille' },
+                  { name: 'Nantes (44)', count: '600+ agences', query: 'Nantes' },
+                  { name: 'Nice (06)', count: '700+ agences', query: 'Nice' },
+                ].map((city) => (
+                  <a
+                    key={city.name}
+                    href={`https://www.google.com/maps/search/agence+immobiliere+gestion+locative+${encodeURIComponent(city.query)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 rounded-xl bg-slate-900 hover:bg-slate-750 border border-slate-700 hover:border-emerald-500/50 transition block group text-left cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white group-hover:text-emerald-400 transition">
+                        {city.name}
+                      </span>
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-emerald-400 transition" />
+                    </div>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">{city.count}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Section 3: Les Grands Réseaux d'Agences en France */}
+            <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-4">
+              <div className="flex items-center space-x-2">
+                <Building2 className="w-5 h-5 text-teal-400" />
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    3. Les grands réseaux d'agences à contacter en priorité
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Ce sont les réseaux qui gèrent le plus grand volume de locations en France :
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  {
+                    name: 'ORPI',
+                    stat: '1 350 agences en France',
+                    desc: 'Premier réseau coopératif de France. Chaque agence est indépendante et décide de ses logiciels.',
+                    url: 'https://www.orpi.com/agences-immobilieres/',
+                  },
+                  {
+                    name: 'Century 21 France',
+                    stat: '950 agences en France',
+                    desc: 'Très fort volume locatif avec des équipes de négociateurs dédiés à la gestion.',
+                    url: 'https://www.century21.fr/agences/',
+                  },
+                  {
+                    name: 'Foncia',
+                    stat: '500 cabinets de gestion',
+                    desc: 'Numéro 1 de la gestion locative et du syndic en France. Cherche constamment à automatiser les fiches de paie.',
+                    url: 'https://fr.foncia.com/agence-immobiliere',
+                  },
+                  {
+                    name: 'Laforêt Immobilier',
+                    stat: '700 agences en France',
+                    desc: 'Réseau très orienté numérique et gain de temps pour les agents.',
+                    url: 'https://www.laforet.com/agence-immobiliere',
+                  },
+                  {
+                    name: 'Guy Hoquet l\'Immobilier',
+                    stat: '580 agences en France',
+                    desc: 'Garantie sur les délais de relocation et exigence forte sur la solvabilité.',
+                    url: 'https://www.guy-hoquet.com/agences',
+                  },
+                  {
+                    name: 'Citya Immobilier',
+                    stat: '250 agences de gestion',
+                    desc: 'Spécialiste historique de la gestion de patrimoine et de la garantie loyers impayés.',
+                    url: 'https://www.citya.com/agences-immobilieres',
+                  },
+                ].map((network) => (
+                  <div key={network.name} className="p-3.5 rounded-xl bg-slate-900 border border-slate-700/80 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <strong className="text-white text-xs font-bold">{network.name}</strong>
+                        <span className="text-[10px] bg-slate-800 text-emerald-400 px-2 py-0.5 rounded font-mono font-bold">
+                          {network.stat}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                        {network.desc}
+                      </p>
+                    </div>
+                    <a
+                      href={network.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition shrink-0"
+                      title="Voir les agences du réseau"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Section 4: Méthode d'Envoi Pas-à-Pas (Routine 20 contacts / jour) */}
+            <div className="bg-slate-800/60 rounded-2xl border border-slate-700 p-5 space-y-4">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                <h3 className="text-base font-bold text-white">
+                  4. Méthode pas-à-pas : Comment envoyer et obtenir des réponses
+                </h3>
+              </div>
+
+              <div className="space-y-3 text-xs text-slate-300">
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 font-black flex items-center justify-center shrink-0 text-xs">
+                    1
+                  </span>
+                  <div>
+                    <strong className="text-white block font-bold">Ouvrez Google Maps ou PagesJaunes sur votre ville :</strong>
+                    <span>Tapez « agence immobiliere gestion locative [Ville] ». Vous obtenez 50 à 100 agences avec leur adresse et leur email (ex: contact@agence-paris.fr ou location@...).</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 font-black flex items-center justify-center shrink-0 text-xs">
+                    2
+                  </span>
+                  <div>
+                    <strong className="text-white block font-bold">Copiez le message d'approche (Onglet 3) :</strong>
+                    <span>Allez dans l'onglet « Démarchage (Email / WhatsApp) », cliquez sur « Copier le message » et collez-le dans votre messagerie avec le lien de la plateforme.</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 font-black flex items-center justify-center shrink-0 text-xs">
+                    3
+                  </span>
+                  <div>
+                    <strong className="text-white block font-bold">Contactez sur LinkedIn les Directeurs d'Agence :</strong>
+                    <span>Cherchez « Directeur agence immobilière » + [Ville]. Envoyez une demande de connexion avec une courte note : « Bonjour [Nom], nous avons créé une IA qui qualifie les fiches de paie en 3s pour vos dossiers locataires. Voici le lien pour tester gratuitement : {window.location.origin} ».</span>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
+                  <span className="w-6 h-6 rounded-full bg-emerald-500 text-slate-950 font-black flex items-center justify-center shrink-0 text-xs">
+                    4
+                  </span>
+                  <div>
+                    <strong className="text-white block font-bold">Publiez sur vos réseaux sociaux (LinkedIn / Instagram) :</strong>
+                    <span>Utilisez le post LinkedIn préparé dans l'onglet « Scripts Sociaux » et joignez la vidéo enregistrée avec le lecteur vidéo démo !</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
