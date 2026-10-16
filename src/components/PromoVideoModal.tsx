@@ -33,6 +33,7 @@ import {
   Mail,
   Phone,
   MessageCircle,
+  Eye,
 } from 'lucide-react';
 import { AgencyProfile, DEFAULT_AGENCY_PROFILE } from '../types.ts';
 
@@ -40,6 +41,7 @@ interface PromoVideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   agencyProfile?: AgencyProfile | null;
+  onOpenVisitorTracker?: () => void;
 }
 
 interface Scene {
@@ -126,6 +128,7 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   isOpen,
   onClose,
   agencyProfile,
+  onOpenVisitorTracker,
 }) => {
   // Safe Agency Profile with complete fallbacks
   const safeProfile = {
@@ -418,10 +421,14 @@ Voix-off : « Rendez-vous sur immoai.fr pour profiter de 14 jours d'essai gratui
 
   // Message WhatsApp / Email
   const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://immoai.fr';
+  const cleanAgency = recipientAgencyName.trim();
+  const outreachLink = cleanAgency
+    ? `${currentOrigin}/?ref=outreach&agency=${encodeURIComponent(cleanAgency)}`
+    : `${currentOrigin}/?ref=outreach`;
 
   const defaultOutreachMessage = `Bonjour,
 
-Je me permets de vous contacter car je sais que dans votre cabinet ${recipientAgencyName.trim() || 'immobilier'}, la vérification des dossiers locataires prend un temps considérable à vos négociateurs.
+Je me permets de vous contacter car je sais que dans votre cabinet ${cleanAgency || 'immobilier'}, la vérification des dossiers locataires prend un temps considérable à vos négociateurs.
 
 Nous avons développé ImmoAI (${currentOrigin}), une solution d'intelligence artificielle dédiée aux agences immobilières françaises :
 • Analyse d'une fiche de paie en 3 secondes (extraction du Net avant impôt, audit période d'essai et ratio 33% Loi ALUR).
@@ -429,13 +436,13 @@ Nous avons développé ImmoAI (${currentOrigin}), une solution d'intelligence ar
 • Génération en 1 clic d'un Rapport Propriétaire certifié A4 aux coordonnées et SIRET de votre agence.
 
 Nous offrons actuellement 14 jours d'essai gratuit sans engagement pour tester l'outil sur vos dossiers en cours :
-👉 Découvrir la plateforme et tester un dossier : ${currentOrigin}
+👉 Découvrir la plateforme et tester un dossier : ${outreachLink}
 
 Seriez-vous disponible pour une rapide démonstration de 3 minutes cette semaine ?
 
 Bien cordialement,
 L'équipe ImmoAI
-Site web : ${currentOrigin}`;
+Site web : ${outreachLink}`;
 
   const effectiveEmailMessage = customEmailMessage || defaultOutreachMessage;
 
@@ -914,6 +921,42 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
         {/* Tab 3: Direct Outreach for Agency Owners */}
         {activeTab === 'outreach_email' && (
           <div className="p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+            {/* Live Visitor Tracker Banner */}
+            {onOpenVisitorTracker && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/90 via-slate-900 to-slate-900 border border-indigo-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg shadow-indigo-950/30">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                    <TrendingUp className="w-5 h-5 text-indigo-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h4 className="text-sm font-bold text-white">
+                        Suivi des Visites des 20 Agences en Direct
+                      </h4>
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono font-bold animate-pulse flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        Actif
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-0.5">
+                      Découvrez en temps réel si les directeurs ou négociateurs des agences ont cliqué sur votre message !
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    safeStopAudio();
+                    onClose();
+                    onOpenVisitorTracker();
+                  }}
+                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-md shadow-indigo-600/30 shrink-0"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Voir le Journal des Visites</span>
+                </button>
+              </div>
+            )}
+
             {/* Guide d'utilisation clair */}
             <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-800/40 text-xs text-indigo-200 space-y-2">
               <div className="flex items-center space-x-2">

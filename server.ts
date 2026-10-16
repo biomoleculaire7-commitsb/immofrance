@@ -697,6 +697,79 @@ app.patch('/api/feedbacks/:id', (req, res) => {
   res.status(404).json({ error: 'Feedback non trouvé' });
 });
 
+// VISITOR ANALYTICS & PROSPECT TRACKING
+export interface VisitorEvent {
+  id: string;
+  timestamp: string;
+  source: string;
+  agencyName?: string;
+  action: 'PAGE_VIEW' | 'SCANNER_TEST' | 'PORTAL_VIEW' | 'PRICING_CLICK' | 'CANDIDATE_SUBMIT';
+  page: string;
+  details?: string;
+}
+
+let visitorEvents: VisitorEvent[] = [
+  {
+    id: `vis-init-1`,
+    timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+    source: 'email_outreach',
+    agencyName: 'ORPI Gestion Paris',
+    action: 'SCANNER_TEST',
+    page: '/scanner',
+    details: 'Test de qualification fiche de paie (CDI Cadre - Salaire 3 450 €)',
+  },
+  {
+    id: `vis-init-2`,
+    timestamp: new Date(Date.now() - 3600000 * 4).toISOString(),
+    source: 'email_outreach',
+    agencyName: 'Cabinet Immobilier Lyon',
+    action: 'PAGE_VIEW',
+    page: '/landing',
+    details: 'Consultation de la vidéo démo et des tarifs (79 €/mois)',
+  },
+];
+
+app.post('/api/analytics/track', (req, res) => {
+  const { source, agencyName, action, page, details } = req.body;
+  const newEvent: VisitorEvent = {
+    id: `vis-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    timestamp: new Date().toISOString(),
+    source: source || 'direct',
+    agencyName: agencyName || undefined,
+    action: action || 'PAGE_VIEW',
+    page: page || '/',
+    details: details || undefined,
+  };
+
+  // Keep last 300 events in memory
+  visitorEvents.unshift(newEvent);
+  if (visitorEvents.length > 300) {
+    visitorEvents = visitorEvents.slice(0, 300);
+  }
+
+  res.status(201).json({ success: true, event: newEvent });
+});
+
+app.get('/api/analytics/stats', (req, res) => {
+  const totalVisits = visitorEvents.length;
+  const outreachVisits = visitorEvents.filter((e) => e.source === 'email_outreach').length;
+  const scannerTests = visitorEvents.filter((e) => e.action === 'SCANNER_TEST').length;
+  const portalVisits = visitorEvents.filter((e) => e.action === 'PORTAL_VIEW').length;
+
+  res.json({
+    totalVisits,
+    outreachVisits,
+    scannerTests,
+    portalVisits,
+    recentEvents: visitorEvents.slice(0, 25),
+  });
+});
+
+app.post('/api/analytics/clear', (req, res) => {
+  visitorEvents = [];
+  res.json({ success: true, message: 'Statistiques réinitialisées' });
+});
+
 // SYSTEM DIAGNOSTICS & HEALTH CHECK
 app.get('/api/system/diagnostics', async (req, res) => {
   const hasGeminiKey = !!process.env.GEMINI_API_KEY;

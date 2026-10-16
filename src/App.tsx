@@ -14,6 +14,7 @@ import { DiagnosticsCenterModal } from './components/DiagnosticsCenterModal.tsx'
 import { AgencyProfileModal } from './components/AgencyProfileModal.tsx';
 import { AddPropertyModal } from './components/AddPropertyModal.tsx';
 import { PromoVideoModal } from './components/PromoVideoModal.tsx';
+import { VisitorTrackerModal } from './components/VisitorTrackerModal.tsx';
 import { CandidateDossier, Property, AgencyProfile, DEFAULT_AGENCY_PROFILE } from './types.ts';
 import { CheckCircle2, X, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 
@@ -133,6 +134,7 @@ export default function App() {
   const [isAgencyProfileOpen, setIsAgencyProfileOpen] = useState<boolean>(false);
   const [isAddPropertyOpen, setIsAddPropertyOpen] = useState<boolean>(false);
   const [isPromoVideoOpen, setIsPromoVideoOpen] = useState<boolean>(false);
+  const [isVisitorTrackerOpen, setIsVisitorTrackerOpen] = useState<boolean>(false);
   const [feedbackSnippet, setFeedbackSnippet] = useState<string | undefined>(undefined);
   const [portalDefaultPropId, setPortalDefaultPropId] = useState<string | undefined>(undefined);
   const [notificationBanner, setNotificationBanner] = useState<{
@@ -143,11 +145,36 @@ export default function App() {
 
   // Initial fetch of properties, candidates and agency profile
   useEffect(() => {
-    // Check URL parameters if opened with ?tab=candidate-portal or ?billing_success=true
+    // Check URL parameters if opened with ?tab=candidate-portal, ?billing_success=true, or ?ref=outreach
     const urlParams = new URLSearchParams(window.location.search);
     const tabParam = urlParams.get('tab');
     const propParam = urlParams.get('prop');
     const billingSuccess = urlParams.get('billing_success');
+    const refParam = urlParams.get('ref');
+    const agencyParam = urlParams.get('agency');
+
+    // Track visitor event in analytics
+    fetch('/api/analytics/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        source: refParam === 'outreach' ? 'email_outreach' : 'direct',
+        agencyName: agencyParam ? decodeURIComponent(agencyParam) : undefined,
+        action: tabParam === 'candidate-portal' ? 'PORTAL_VIEW' : 'PAGE_VIEW',
+        page: window.location.pathname + window.location.search,
+        details: agencyParam
+          ? `Visite détectée suite à l'email envoyé à ${decodeURIComponent(agencyParam)}`
+          : 'Visite de la plateforme ImmoAI',
+      }),
+    }).catch(() => {});
+
+    if (agencyParam) {
+      setNotificationBanner({
+        title: `Bienvenue à l'équipe ${decodeURIComponent(agencyParam)} !`,
+        message: 'Votre accès gratuit de 14 jours est actif. Vous pouvez tester un bulletin de salaire directement sans carte bancaire.',
+        type: 'info',
+      });
+    }
 
     if (billingSuccess === 'true') {
       setNotificationBanner({
@@ -373,6 +400,7 @@ export default function App() {
         agencyProfile={agencyProfile}
         onOpenAgencyProfile={() => setIsAgencyProfileOpen(true)}
         onOpenPromoVideo={() => setIsPromoVideoOpen(true)}
+        onOpenVisitorTracker={() => setIsVisitorTrackerOpen(true)}
         onOpenGuide={() => setIsGuideOpen(true)}
         onOpenBilling={() => setIsBillingOpen(true)}
         onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
@@ -415,6 +443,7 @@ export default function App() {
               agencyProfile={agencyProfile}
               onOpenAgencyProfile={() => setIsAgencyProfileOpen(true)}
               onOpenPromoVideo={() => setIsPromoVideoOpen(true)}
+              onOpenVisitorTracker={() => setIsVisitorTrackerOpen(true)}
               onOpenAddProperty={() => setIsAddPropertyOpen(true)}
               onDeleteProperty={handleDeleteProperty}
               onClearAllCandidates={handleClearAllCandidates}
@@ -614,9 +643,20 @@ export default function App() {
             isOpen={isPromoVideoOpen}
             onClose={() => setIsPromoVideoOpen(false)}
             agencyProfile={agencyProfile}
+            onOpenVisitorTracker={() => setIsVisitorTrackerOpen(true)}
           />
         </ErrorBoundary>
       )}
+
+      {/* Real-time Visitor & Prospect Tracker Modal */}
+      <VisitorTrackerModal
+        isOpen={isVisitorTrackerOpen}
+        onClose={() => setIsVisitorTrackerOpen(false)}
+        onNavigateToScanner={() => {
+          setIsVisitorTrackerOpen(false);
+          setCurrentTab('scanner');
+        }}
+      />
     </div>
   );
 }

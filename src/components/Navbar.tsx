@@ -11,6 +11,7 @@ import {
   Activity,
   MessageSquare,
   Video,
+  TrendingUp,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -20,6 +21,7 @@ interface NavbarProps {
   agencyProfile?: { name: string; managerName: string };
   onOpenAgencyProfile?: () => void;
   onOpenPromoVideo?: () => void;
+  onOpenVisitorTracker?: () => void;
   onOpenGuide: () => void;
   onOpenBilling: () => void;
   onOpenDiagnostics: () => void;
@@ -33,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   agencyProfile,
   onOpenAgencyProfile,
   onOpenPromoVideo,
+  onOpenVisitorTracker,
   onOpenGuide,
   onOpenBilling,
   onOpenDiagnostics,
@@ -144,6 +147,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Video className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span className="hidden sm:inline">Vidéo & Kit Commercial</span>
                 <span className="sm:hidden">Vidéo & Kit</span>
+              </button>
+            )}
+
+            {onOpenVisitorTracker && (
+              <button
+                onClick={onOpenVisitorTracker}
+                className="flex items-center space-x-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 text-xs font-bold transition cursor-pointer shadow-sm shadow-indigo-500/15 shrink-0"
+                title="Suivi des visites en direct : Détection des 20 agences prospectées"
+              >
+                <TrendingUp className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span className="hidden md:inline">Suivi Visites</span>
+                <span className="md:hidden">Visites</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
               </button>
             )}
 

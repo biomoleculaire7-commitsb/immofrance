@@ -36,6 +36,7 @@ interface DashboardViewProps {
   agencyProfile?: AgencyProfile;
   onOpenAgencyProfile?: () => void;
   onOpenPromoVideo?: () => void;
+  onOpenVisitorTracker?: () => void;
   onOpenAddProperty?: () => void;
   onDeleteProperty?: (propId: string) => void;
   onClearAllCandidates?: () => void;
@@ -55,6 +56,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   agencyProfile = DEFAULT_AGENCY_PROFILE,
   onOpenAgencyProfile,
   onOpenPromoVideo,
+  onOpenVisitorTracker,
   onOpenAddProperty,
   onDeleteProperty,
   onClearAllCandidates,
@@ -164,6 +166,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               <Video className="w-4 h-4 text-white" />
               <span>Vidéo & Kit Commercial</span>
+            </button>
+          )}
+
+          {onOpenVisitorTracker && (
+            <button
+              onClick={onOpenVisitorTracker}
+              className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-indigo-950/90 border border-indigo-700/70 text-indigo-200 hover:bg-indigo-900 shadow-sm transition flex items-center space-x-2 cursor-pointer"
+              title="Consulter le journal des 20 agences et des visiteurs en temps réel"
+            >
+              <TrendingUp className="w-4 h-4 text-indigo-400" />
+              <span>Suivi Visites (20 Agences)</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             </button>
           )}
 

@@ -98,3 +98,21 @@ export const DEFAULT_AGENCY_PROFILE: AgencyProfile = {
   gliPartner: 'Allianz GLI & Garantie Visale',
   portalWelcomeMessage: 'Déposez vos pièces justificatives en toute sécurité. Vos informations sont analysées en temps réel selon les critères de solvabilité de la Loi ALUR.',
 };
+
+export interface VisitorEvent {
+  id: string;
+  timestamp: string;
+  source: string;
+  agencyName?: string;
+  action: 'PAGE_VIEW' | 'SCANNER_TEST' | 'PORTAL_VIEW' | 'PRICING_CLICK' | 'CANDIDATE_SUBMIT';
+  page: string;
+  details?: string;
+}
+
+export interface AnalyticsStats {
+  totalVisits: number;
+  outreachVisits: number;
+  scannerTests: number;
+  portalVisits: number;
+  recentEvents: VisitorEvent[];
+}
