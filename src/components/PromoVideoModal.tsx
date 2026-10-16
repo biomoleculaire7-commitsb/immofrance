@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Play,
@@ -20,6 +20,7 @@ import {
   Clock,
   Euro,
   Layers,
+  ChevronLeft,
   ChevronRight,
   Smartphone,
   Monitor,
@@ -49,7 +50,7 @@ interface Scene {
 const SCENES: Scene[] = [
   {
     id: 1,
-    duration: 8,
+    duration: 15,
     badge: 'Problème Agence',
     title: 'Vous passez encore 10 heures par semaine sur les fiches de paie ?',
     subtitle: 'Calculs manuels de solvabilité, bulletins falsifiés, périodes d\'essai masquées...',
@@ -62,7 +63,7 @@ const SCENES: Scene[] = [
   },
   {
     id: 2,
-    duration: 9,
+    duration: 16,
     badge: 'Solution IA',
     title: 'ImmoAI qualifie chaque dossier locatif en 3 secondes chrono.',
     subtitle: 'Intelligence artificielle spécialisée pour le marché locatif français.',
@@ -75,7 +76,7 @@ const SCENES: Scene[] = [
   },
   {
     id: 3,
-    duration: 9,
+    duration: 16,
     badge: 'Portail Candidat',
     title: 'Un lien public à intégrer dans vos annonces SeLoger & Leboncoin.',
     subtitle: 'Fini les boîtes mails encombrées : vos candidats déposent leurs pièces en toute sécurité.',
@@ -88,7 +89,7 @@ const SCENES: Scene[] = [
   },
   {
     id: 4,
-    duration: 9,
+    duration: 15,
     badge: 'Rapport Propriétaire',
     title: 'Exportez un Rapport PDF Certifié au nom de votre Agence.',
     subtitle: 'La preuve irréfutable de solvabilité pour rassurer vos propriétaires bailleurs.',
@@ -101,7 +102,7 @@ const SCENES: Scene[] = [
   },
   {
     id: 5,
-    duration: 8,
+    duration: 12,
     badge: 'Offre Découverte',
     title: 'Passez votre agence à la vitesse supérieure. 14 jours gratuits.',
     subtitle: 'Sans engagement. 79 € HT / mois seulement. Rentabilisé dès le premier mandat.',
@@ -134,29 +135,54 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   const [formatMode, setFormatMode] = useState<'16:9' | '9:16'>('16:9');
   const [currentSceneIdx, setCurrentSceneIdx] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(false);
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true); // Default ON so the user hears voiceover immediately
   const [progress, setProgress] = useState(0); // 0 to 100 in current scene
+  const [isVoiceSpeaking, setIsVoiceSpeaking] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Safe voice synthesis helper
-  const safeSpeak = (text: string) => {
-    if (!isAudioEnabled) return;
-    try {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        if (typeof SpeechSynthesisUtterance !== 'undefined') {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = 'fr-FR';
-          utterance.rate = 1.05;
-          window.speechSynthesis.speak(utterance);
-        }
-      }
-    } catch (err) {
-      // Audio failed silently without crashing UI
-    }
+  // References to keep speech synthesis alive & prevent Chrome garbage collection
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const keepAliveIntervalRef = useRef<any>(null);
+  const transitionTimeoutRef = useRef<any>(null);
+  const progressTimerRef = useRef<any>(null);
+  const speechCompletedRef = useRef<boolean>(false);
+
+  // Clean text for French Speech Synthesis to avoid stuttering or stopping on symbols like '%' or '€'
+  const formatForSpeech = (rawText: string) => {
+    return rawText
+      .replace(/33\s*%/g, 'trente-trois pour cent')
+      .replace(/3x/g, 'trois fois')
+      .replace(/10h\s*\/\s*sem/gi, 'dix heures par semaine')
+      .replace(/10h/gi, 'dix heures')
+      .replace(/14\s*jours/gi, 'quatorze jours')
+      .replace(/3\s*secondes/gi, 'trois secondes')
+      .replace(/79\s*€\s*HT/gi, 'soixante-dix-neuf euros hors taxes')
+      .replace(/79\s*€/gi, 'soixante-dix-neuf euros')
+      .replace(/€/g, 'euros')
+      .replace(/A4/g, 'A quatre')
+      .replace(/CDI/g, 'C D I')
+      .replace(/GLI/g, 'G L I')
+      .replace(/RGPD/g, 'R G P D')
+      .replace(/ALUR/g, 'Alur')
+      .replace(/immoai\.fr/g, 'immo a i point f r');
   };
 
   const safeStopAudio = () => {
+    speechCompletedRef.current = false;
+    setIsVoiceSpeaking(false);
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+    if (keepAliveIntervalRef.current) {
+      clearInterval(keepAliveIntervalRef.current);
+      keepAliveIntervalRef.current = null;
+    }
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
+    utteranceRef.current = null;
     try {
       if (typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
         window.speechSynthesis.cancel();
@@ -164,46 +190,127 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
     } catch (e) {}
   };
 
-  // Video loop timer hook - unconditionally declared
+  // Function to move to the next scene or loop/stop
+  const advanceToNextScene = () => {
+    safeStopAudio();
+    setProgress(100);
+    setTimeout(() => {
+      if (currentSceneIdx < SCENES.length - 1) {
+        setCurrentSceneIdx((prev) => prev + 1);
+        setProgress(0);
+      } else {
+        setIsPlaying(false);
+        setProgress(100);
+      }
+    }, 400);
+  };
+
+  // Video scene execution hook: coordinates audio speech & scene transition
   useEffect(() => {
     if (!isOpen) {
       safeStopAudio();
       return;
     }
 
-    let timer: any = null;
-
-    if (isPlaying) {
-      const scene = SCENES[currentSceneIdx] || SCENES[0];
-      if (progress === 0 && isAudioEnabled) {
-        safeSpeak(scene.voiceoverFr);
-      }
-
-      const stepMs = 100;
-      const totalSteps = ((scene.duration || 8) * 1000) / stepMs;
-      const increment = 100 / totalSteps;
-
-      timer = setInterval(() => {
-        setProgress((prev) => {
-          if (prev + increment >= 100) {
-            if (currentSceneIdx < SCENES.length - 1) {
-              setCurrentSceneIdx((c) => c + 1);
-              return 0;
-            } else {
-              setIsPlaying(false);
-              safeStopAudio();
-              return 100;
-            }
-          }
-          return prev + increment;
-        });
-      }, stepMs);
-    } else {
+    if (!isPlaying) {
       safeStopAudio();
+      return;
     }
 
+    const scene = SCENES[currentSceneIdx] || SCENES[0];
+    const estimatedDurationMs = (scene.duration || 15) * 1000;
+    const stepIntervalMs = 100;
+    let localProgress = 0;
+    setProgress(0);
+    speechCompletedRef.current = false;
+
+    // 1. If audio is enabled, launch speech synthesis with full lifecycle events
+    if (isAudioEnabled && typeof window !== 'undefined' && 'speechSynthesis' in window && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+        const phoneticText = formatForSpeech(scene.voiceoverFr);
+        const utterance = new SpeechSynthesisUtterance(phoneticText);
+        utterance.lang = 'fr-FR';
+        utterance.rate = 1.0; // Natural, clear French cadence
+        utterance.pitch = 1.0;
+
+        // Try to pick a high quality French voice if present
+        const voices = window.speechSynthesis.getVoices();
+        const frenchVoice = voices.find(
+          (v) => v.lang.startsWith('fr') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Thomas') || v.name.includes('Amelie'))
+        ) || voices.find((v) => v.lang.startsWith('fr'));
+        if (frenchVoice) {
+          utterance.voice = frenchVoice;
+        }
+
+        utteranceRef.current = utterance;
+        setIsVoiceSpeaking(true);
+
+        // Keep-alive timer for Chrome (Chrome stops speech after 14s if keep-alive is not triggered)
+        if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
+        keepAliveIntervalRef.current = setInterval(() => {
+          if (window.speechSynthesis && window.speechSynthesis.speaking) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          }
+        }, 6000);
+
+        // WHEN THE FULL SENTENCE HAS FINISHED SPEAKING:
+        utterance.onend = () => {
+          speechCompletedRef.current = true;
+          setIsVoiceSpeaking(false);
+          if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
+          
+          // Smooth 1.2-second pause after voice finishes to let the user absorb the message
+          transitionTimeoutRef.current = setTimeout(() => {
+            advanceToNextScene();
+          }, 1200);
+        };
+
+        utterance.onerror = () => {
+          speechCompletedRef.current = true;
+          setIsVoiceSpeaking(false);
+          if (keepAliveIntervalRef.current) clearInterval(keepAliveIntervalRef.current);
+        };
+
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        setIsVoiceSpeaking(false);
+      }
+    }
+
+    // 2. Smooth progress bar animation
+    const progressIncrement = 100 / (estimatedDurationMs / stepIntervalMs);
+    progressTimerRef.current = setInterval(() => {
+      localProgress += progressIncrement;
+
+      // If voice is speaking, cap progress bar at 94% until voiceover actually finishes
+      if (isAudioEnabled && !speechCompletedRef.current) {
+        if (localProgress >= 94) {
+          localProgress = 94;
+        }
+      } else {
+        if (localProgress >= 100) {
+          localProgress = 100;
+          if (!isAudioEnabled) {
+            if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+            advanceToNextScene();
+          }
+        }
+      }
+      setProgress(Math.min(100, localProgress));
+    }, stepIntervalMs);
+
+    // Fallback maximum safety timeout (so video never freezes if browser speech hangs)
+    const maxSafetyTimeout = setTimeout(() => {
+      if (!speechCompletedRef.current) {
+        advanceToNextScene();
+      }
+    }, estimatedDurationMs + 6000);
+
     return () => {
-      if (timer) clearInterval(timer);
+      safeStopAudio();
+      clearTimeout(maxSafetyTimeout);
     };
   }, [isOpen, isPlaying, currentSceneIdx, isAudioEnabled]);
 
@@ -233,18 +340,12 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
     setCurrentSceneIdx(0);
     setProgress(0);
     setIsPlaying(true);
-    if (isAudioEnabled) {
-      safeSpeak(SCENES[0].voiceoverFr);
-    }
   };
 
   const handleSelectScene = (idx: number) => {
     safeStopAudio();
     setCurrentSceneIdx(idx);
     setProgress(0);
-    if (isPlaying && isAudioEnabled) {
-      safeSpeak(SCENES[idx].voiceoverFr);
-    }
   };
 
   const handleCopyText = (text: string, id: string) => {
@@ -549,11 +650,19 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
               </div>
 
               {/* Subtitles / Voiceover text */}
-              <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-center">
-                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block mb-0.5">
-                  Sous-titres & Voix-off synchronisée :
-                </span>
-                <p className="text-xs text-emerald-200 font-medium italic">
+              <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 text-center space-y-1.5">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                    Sous-titres & Voix-off synchronisée :
+                  </span>
+                  {isAudioEnabled && isPlaying && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold">
+                      <Volume2 className="w-3 h-3 text-emerald-400 animate-pulse" />
+                      <span>{isVoiceSpeaking ? 'Lecture vocale en cours...' : 'Voix-off prête'}</span>
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs sm:text-sm text-emerald-200 font-medium leading-relaxed">
                   « {currentScene.voiceoverFr} »
                 </p>
               </div>
@@ -569,7 +678,7 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
 
             {/* Video Controls Bar */}
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2 sm:space-x-3">
                 <button
                   onClick={handleTogglePlay}
                   className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex items-center space-x-2 cursor-pointer shadow-lg shadow-emerald-500/20"
@@ -593,6 +702,32 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
                   title="Recommencer depuis le début"
                 >
                   <RotateCcw className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (currentSceneIdx > 0) {
+                      handleSelectScene(currentSceneIdx - 1);
+                    }
+                  }}
+                  disabled={currentSceneIdx === 0}
+                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 text-xs transition cursor-pointer"
+                  title="Scène précédente"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (currentSceneIdx < SCENES.length - 1) {
+                      handleSelectScene(currentSceneIdx + 1);
+                    }
+                  }}
+                  disabled={currentSceneIdx === SCENES.length - 1}
+                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-200 text-xs transition cursor-pointer"
+                  title="Scène suivante"
+                >
+                  <ChevronRight className="w-4 h-4" />
                 </button>
 
                 <button
