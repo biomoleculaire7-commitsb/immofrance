@@ -119,11 +119,11 @@ const SCENES: Scene[] = [
     duration: 12,
     badge: 'Offre Découverte',
     title: 'Passez votre agence à la vitesse supérieure. 14 jours gratuits.',
-    subtitle: 'Sans engagement. 79 € HT / mois seulement. Rentabilisé dès le premier mandat.',
+    subtitle: 'Sans engagement. 79 € HT / mois seulement. Testez dès aujourd\'hui via le lien de la plateforme.',
     voiceoverFr:
-      'Rejoignez les agences qui automatisent leur gestion locative. Testez gratuitement ImmoAI pendant quatorze jours sans engagement sur immoai.fr.',
+      'Rejoignez les agences qui automatisent leur gestion locative. Testez gratuitement ImmoAI pendant quatorze jours sans engagement : le lien direct de la plateforme est accessible sous cette vidéo et en description.',
     visualDescription:
-      'Écran final avec tarif clair, bouton d\'essai gratuit 14 jours et logo ImmoAI éclatant.',
+      'Écran final avec tarif clair, bouton d\'essai gratuit 14 jours et lien direct de la plateforme bien visible.',
     statsOverlay: { label: 'Période d\'essai', value: '14 jours offerts' },
     graphicType: 'offer',
   },
@@ -158,6 +158,27 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   const [recipientAgencyName, setRecipientAgencyName] = useState<string>('');
   const [recipientPhone, setRecipientPhone] = useState<string>('');
   const [customEmailMessage, setCustomEmailMessage] = useState<string>('');
+
+  // Live Platform URL displayed on video and outreach links
+  const [displayedPlatformUrl, setDisplayedPlatformUrl] = useState<string>(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('immoai_custom_platform_url');
+        if (saved) return saved;
+        return window.location.origin;
+      }
+    } catch (e) {}
+    return 'https://immoai.fr';
+  });
+
+  const displayedPlatformHost = (() => {
+    try {
+      const parsed = new URL(displayedPlatformUrl);
+      return parsed.host;
+    } catch (e) {
+      return displayedPlatformUrl.replace(/^https?:\/\//, '');
+    }
+  })();
 
   // Video Recording & Export state
   const [isRecording, setIsRecording] = useState(false);
@@ -530,7 +551,7 @@ Entre le calcul des 33% de taux d'effort, la détection des périodes d'essai ma
 💡 Résultat : ~ 9,5 heures gagnées par semaine par négociateur, et zéro risque d'impayé non couvert.
 
 🎁 Testez gratuitement pendant 14 jours (sans engagement) :
-👉 https://immoai.fr
+👉 ${displayedPlatformUrl}
 
 #Proptech #Immobilier #GestionLocative #LoiALUR #IntelligenceArtificielle #AgencesImmobilieres`;
 
@@ -554,10 +575,10 @@ Voix-off : « Avec ImmoAI, vous glissez la fiche de paie... et en 3 secondes chr
 Voix-off : « Et en un clic, j'exporte le rapport PDF certifié avec le logo et le SIRET de mon agence pour rassurer mon propriétaire bailleur. »
 
 🎬 PLAN 5 (40-45s) - CALL TO ACTION :
-Voix-off : « Rendez-vous sur immoai.fr pour profiter de 14 jours d'essai gratuit sans engagement ! »`;
+Voix-off : « Rendez-vous sur le lien de la plateforme en bio (${displayedPlatformHost}) pour profiter de 14 jours d'essai gratuit sans engagement ! »`;
 
   // Message WhatsApp / Email
-  const currentOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://immoai.fr';
+  const currentOrigin = displayedPlatformUrl;
   const cleanAgency = recipientAgencyName.trim();
   const outreachLink = cleanAgency
     ? `${currentOrigin}/?ref=outreach&agency=${encodeURIComponent(cleanAgency)}`
@@ -611,7 +632,7 @@ Site web : ${outreachLink}`;
   const pitchTelephone = `« Bonjour [Nom du Directeur], je vous appelle très brièvement au sujet de la gestion locative de votre agence.
 Aujourd'hui, vos négociateurs passent en moyenne 25 minutes par dossier à vérifier les fiches de paie et calculer les ratios d'effort.
 ImmoAI divise ce temps par 10 : notre IA lit la fiche de paie en 3 secondes, certifie l'éligibilité GLI et vous génère un rapport PDF officiel pour le bailleur.
-Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vous 2 minutes pour tester sur un dossier réel ? »`;
+Nous offrons 14 jours d'essai gratuit sans carte bancaire sur notre plateforme (${displayedPlatformHost}). Avez-vous 2 minutes pour tester sur un dossier réel ? »`;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
@@ -747,6 +768,59 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
               </div>
             </div>
 
+            {/* Live Platform URL Bar */}
+            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center space-x-2.5 flex-1 min-w-0">
+                <Globe className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span className="font-bold text-slate-300 whitespace-nowrap">Lien réel de la plateforme :</span>
+                <input
+                  type="text"
+                  value={displayedPlatformUrl}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDisplayedPlatformUrl(val);
+                    try {
+                      localStorage.setItem('immoai_custom_platform_url', val);
+                    } catch (err) {}
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-emerald-300 font-mono text-xs w-full max-w-md focus:outline-none focus:border-emerald-500"
+                  placeholder="https://votre-domaine.com"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2 shrink-0">
+                <button
+                  onClick={() => {
+                    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://immoai.fr';
+                    setDisplayedPlatformUrl(origin);
+                    try {
+                      localStorage.setItem('immoai_custom_platform_url', origin);
+                    } catch (err) {}
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition cursor-pointer"
+                  title="Détecter automatiquement l'adresse web actuelle de cette session"
+                >
+                  Détecter automatiquement
+                </button>
+                <button
+                  onClick={() => handleCopyText(displayedPlatformUrl, 'copy_platform_url')}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  {copiedId === 'copy_platform_url' ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Copié !</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copier le lien</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
             {/* The Animated Video Screen */}
             <div
               className={`relative mx-auto rounded-3xl overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950/60 border border-slate-700 shadow-2xl p-5 sm:p-8 flex flex-col justify-between transition-all duration-300 ${
@@ -814,9 +888,11 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
                   {currentScene.graphicType === 'portal' && (
                     <div className="flex items-center space-x-3 text-xs text-slate-300">
                       <Share2 className="w-7 h-7 text-emerald-400 shrink-0" />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <strong className="text-white block">Lien public personnalisé pour l'agence :</strong>
-                        <span className="font-mono text-emerald-400 text-[11px]">immoai.fr/?tab=candidate-portal</span>
+                        <span className="font-mono text-emerald-300 text-[11px] bg-slate-950 px-2 py-0.5 rounded border border-emerald-500/30 truncate block">
+                          {displayedPlatformUrl}/?tab=candidate-portal
+                        </span>
                       </div>
                     </div>
                   )}
@@ -832,14 +908,22 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
                   )}
 
                   {currentScene.graphicType === 'offer' && (
-                    <div className="flex items-center justify-between text-xs">
-                      <div>
-                        <span className="text-xs text-emerald-400 font-bold uppercase block">Essai Découverte</span>
-                        <strong className="text-white text-base">14 Jours Offerts</strong>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <div>
+                          <span className="text-xs text-emerald-400 font-bold uppercase block">Offre Découverte Agence</span>
+                          <strong className="text-white text-base">14 Jours Offerts</strong>
+                        </div>
+                        <span className="px-3 py-1 rounded-full bg-emerald-500 text-slate-950 font-black text-xs">
+                          Sans engagement
+                        </span>
                       </div>
-                      <span className="px-3 py-1 rounded-full bg-emerald-500 text-slate-950 font-black text-xs">
-                        Sans engagement
-                      </span>
+                      <div className="pt-2 border-t border-slate-700/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
+                        <span className="text-slate-400 text-[11px]">Lien direct de la plateforme :</span>
+                        <span className="font-mono text-emerald-300 font-bold text-xs bg-slate-950 px-2.5 py-1 rounded-lg border border-emerald-500/30 truncate max-w-full">
+                          {displayedPlatformUrl}
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
