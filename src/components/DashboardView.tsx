@@ -48,6 +48,8 @@ interface DashboardViewProps {
   onNavigateToScanner: () => void;
   onNavigateToCandidatePortal: (propertyId?: string) => void;
   onOpenLandlordReport: (candidate: CandidateDossier) => void;
+  isAdmin?: boolean;
+  isPreviewAsClient?: boolean;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -68,6 +70,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToScanner,
   onNavigateToCandidatePortal,
   onOpenLandlordReport,
+  isAdmin = false,
+  isPreviewAsClient = false,
 }) => {
   const [selectedPropertyFilter, setSelectedPropertyFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL');
@@ -158,22 +162,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </button>
           )}
 
-          {onOpenPromoVideo && (
+          {isAdmin && !isPreviewAsClient && onOpenPromoVideo && (
             <button
               onClick={onOpenPromoVideo}
               className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-600/20 transition flex items-center space-x-2 cursor-pointer"
-              title="Studio Vidéo Démo & Scripts pour Réseaux Sociaux"
+              title="Studio Vidéo Démo & Scripts pour Réseaux Sociaux (Réservé Fondateur)"
             >
               <Video className="w-4 h-4 text-white" />
               <span>Vidéo & Kit Commercial</span>
             </button>
           )}
 
-          {onOpenVisitorTracker && (
+          {isAdmin && !isPreviewAsClient && onOpenVisitorTracker && (
             <button
               onClick={onOpenVisitorTracker}
               className="px-3.5 py-2.5 rounded-xl text-xs font-bold bg-indigo-950/90 border border-indigo-700/70 text-indigo-200 hover:bg-indigo-900 shadow-sm transition flex items-center space-x-2 cursor-pointer"
-              title="Consulter le journal des 20 agences et des visiteurs en temps réel"
+              title="Consulter le journal des 20 agences et des visiteurs en temps réel (Réservé Fondateur)"
             >
               <TrendingUp className="w-4 h-4 text-indigo-400" />
               <span>Suivi Visites (20 Agences)</span>
