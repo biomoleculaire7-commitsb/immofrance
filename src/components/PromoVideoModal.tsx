@@ -34,6 +34,11 @@ import {
   Phone,
   MessageCircle,
   Eye,
+  Download,
+  Square,
+  CircleDot,
+  Film,
+  AlertCircle,
 } from 'lucide-react';
 import { AgencyProfile, DEFAULT_AGENCY_PROFILE } from '../types.ts';
 
@@ -154,6 +159,17 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
   const [recipientPhone, setRecipientPhone] = useState<string>('');
   const [customEmailMessage, setCustomEmailMessage] = useState<string>('');
 
+  // Video Recording & Export state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
+  const [recordedFilename, setRecordedFilename] = useState<string>('');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<any>(null);
+
   // References to keep speech synthesis alive & prevent Chrome garbage collection
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const keepAliveIntervalRef = useRef<any>(null);
@@ -204,6 +220,124 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
     } catch (e) {}
   };
 
+  const handleStopRecording = () => {
+    try {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    } catch (e) {}
+
+    try {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+      }
+    } catch (e) {}
+
+    setIsRecording(false);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      setRecordingError(null);
+      if (typeof window === 'undefined' || !navigator?.mediaDevices?.getDisplayMedia) {
+        setRecordingError("L'enregistrement direct nécessite un navigateur comme Chrome, Edge ou Safari sur ordinateur. Sur mobile, utilisez l'enregistreur d'écran natif.");
+        return;
+      }
+
+      // Prompt screen / window / tab capture
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: 'browser' as any,
+        },
+        audio: true,
+      });
+
+      mediaStreamRef.current = stream;
+      recordedChunksRef.current = [];
+
+      let mimeType = 'video/webm';
+      if (typeof MediaRecorder !== 'undefined') {
+        if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) {
+          mimeType = 'video/webm;codecs=vp9';
+        } else if (MediaRecorder.isTypeSupported('video/webm')) {
+          mimeType = 'video/webm';
+        } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+          mimeType = 'video/mp4';
+        }
+      }
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data && event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        setIsRecording(false);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+
+        // Release media tracks
+        stream.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+
+        if (recordedChunksRef.current.length > 0) {
+          const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+          const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+          const filename = formatMode === '9:16' ? `immoai-tiktok-reels-9-16.${ext}` : `immoai-linkedin-demo-16-9.${ext}`;
+          setRecordedFilename(filename);
+          const url = URL.createObjectURL(blob);
+          setRecordedBlobUrl(url);
+
+          // Auto trigger download
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      };
+
+      // Handle user pressing native "Stop sharing" button in browser
+      if (stream.getVideoTracks()[0]) {
+        stream.getVideoTracks()[0].onended = () => {
+          handleStopRecording();
+        };
+      }
+
+      recorder.start(250);
+      setIsRecording(true);
+      setRecordingSeconds(0);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+
+      // Auto start video playback from scene 0 with audio voiceover
+      safeStopAudio();
+      setCurrentSceneIdx(0);
+      setProgress(0);
+      setIsAudioEnabled(true);
+      setIsPlaying(true);
+    } catch (err: any) {
+      if (err?.name !== 'NotAllowedError') {
+        setRecordingError("L'autorisation d'enregistrement a été refusée ou annulée.");
+      }
+      setIsRecording(false);
+    }
+  };
+
   // Function to move to the next scene or loop/stop
   const advanceToNextScene = () => {
     safeStopAudio();
@@ -215,6 +349,9 @@ export const PromoVideoModal: React.FC<PromoVideoModalProps> = ({
       } else {
         setIsPlaying(false);
         setProgress(100);
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          handleStopRecording();
+        }
       }
     }, 400);
   };
@@ -522,7 +659,7 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
             }`}
           >
             <Play className="w-4 h-4" />
-            <span>1. Vidéo Démo</span>
+            <span>1. Vidéo Démo & Téléchargement (1-Clic)</span>
           </button>
 
           <button
@@ -737,10 +874,10 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
 
             {/* Video Controls Bar */}
             <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center space-x-2 sm:space-x-3">
+              <div className="flex items-center flex-wrap gap-2 sm:gap-3">
                 <button
                   onClick={handleTogglePlay}
-                  className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex items-center space-x-2 cursor-pointer shadow-lg shadow-emerald-500/20"
+                  className="px-4 sm:px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex items-center space-x-2 cursor-pointer shadow-lg shadow-emerald-500/20"
                 >
                   {isPlaying ? (
                     <>
@@ -754,6 +891,27 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
                     </>
                   )}
                 </button>
+
+                {/* Direct 1-Click Screen Recorder & Video Downloader */}
+                {isRecording ? (
+                  <button
+                    onClick={handleStopRecording}
+                    className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-black text-xs transition flex items-center space-x-2 cursor-pointer animate-pulse ring-4 ring-red-500/30 shadow-lg shadow-red-600/30"
+                    title="Arrêter l'enregistrement et télécharger la vidéo"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-white" />
+                    <span>Arrêter & Télécharger ({Math.floor(recordingSeconds / 60)}:{('0' + (recordingSeconds % 60)).slice(-2)})</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartRecording}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black text-xs transition flex items-center space-x-2 cursor-pointer shadow-lg shadow-red-500/25"
+                    title="Enregistrer l'écran et télécharger le fichier vidéo prêt pour TikTok / LinkedIn"
+                  >
+                    <CircleDot className="w-4 h-4 text-white animate-pulse" />
+                    <span>Enregistrer & Télécharger (.webm)</span>
+                  </button>
+                )}
 
                 <button
                   onClick={handleRestart}
@@ -803,7 +961,7 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
               </div>
 
               {/* Timeline Scene Selector */}
-              <div className="flex items-center space-x-1.5 overflow-x-auto">
+              <div className="flex items-center space-x-1.5 overflow-x-auto max-w-full">
                 {SCENES.map((scene, idx) => (
                   <button
                     key={scene.id}
@@ -820,12 +978,160 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
               </div>
             </div>
 
-            {/* Instruction to record */}
-            <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-800/40 text-xs text-emerald-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Recording Feedback / Download Ready Banner */}
+            {recordedBlobUrl && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 to-teal-950/80 border border-emerald-500/40 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl">
+                <div className="flex items-center space-x-3 text-left">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">
+                      Vidéo enregistrée et prête à être envoyée !
+                    </span>
+                    <span className="text-[11px] text-emerald-300 font-mono">
+                      Fichier : {recordedFilename}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={recordedBlobUrl}
+                    download={recordedFilename}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/20"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Télécharger à nouveau</span>
+                  </a>
+                  <button
+                    onClick={() => setActiveTab('scripts_social')}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Voir textes LinkedIn / TikTok</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Recording Error Alert */}
+            {recordingError && (
+              <div className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2.5">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{recordingError}</span>
+              </div>
+            )}
+
+            {/* Complete Guide to Export for TikTok & LinkedIn */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Card 1: TikTok / Reels */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-pink-500/30 hover:border-pink-500/50 transition space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-3 h-3 rounded-full bg-pink-500 animate-pulse" />
+                    <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                      <Smartphone className="w-4 h-4 text-pink-400" />
+                      <span>Pour TikTok / Instagram Reels (9:16)</span>
+                    </h4>
+                  </div>
+                  <button
+                    onClick={() => setFormatMode('9:16')}
+                    className="px-2.5 py-1 rounded-lg bg-pink-500/20 text-pink-300 border border-pink-500/40 text-[11px] font-bold hover:bg-pink-500/30 cursor-pointer transition"
+                  >
+                    Activer 9:16
+                  </button>
+                </div>
+
+                <ol className="text-xs text-slate-300 space-y-2 list-decimal list-inside leading-relaxed">
+                  <li>
+                    Cliquez sur <strong>"9:16 Vertical"</strong> ci-dessus pour adapter l'affichage aux téléphones.
+                  </li>
+                  <li>
+                    <strong>Depuis votre smartphone :</strong> Ouvrez le site, lancez l'enregistrement d'écran intégré (iPhone : Balayer vers le bas &gt; Enregistreur d'écran / Android : Volet rapide &gt; Enregistrement écran) avec le son activé.
+                  </li>
+                  <li>
+                    <strong>Ou depuis ce PC :</strong> Cliquez sur le bouton rouge <em>"Enregistrer & Télécharger"</em>, la vidéo 9:16 se télécharge directement.
+                  </li>
+                </ol>
+
+                <div className="pt-2 flex items-center gap-2">
+                  <button
+                    onClick={() => handleCopyText(scriptReelsTikTok, 'copy_tiktok_guide')}
+                    className="w-full py-2 rounded-xl bg-pink-600/30 hover:bg-pink-600/50 border border-pink-500/40 text-pink-200 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {copiedId === 'copy_tiktok_guide' ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-pink-300" />
+                        <span>Description TikTok copiée !</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copier la description TikTok & #hashtags</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 2: LinkedIn Pro */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-blue-500/30 hover:border-blue-500/50 transition space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-3 h-3 rounded-full bg-blue-500" />
+                    <h4 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5">
+                      <Monitor className="w-4 h-4 text-blue-400" />
+                      <span>Pour LinkedIn & YouTube (16:9)</span>
+                    </h4>
+                  </div>
+                  <button
+                    onClick={() => setFormatMode('16:9')}
+                    className="px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[11px] font-bold hover:bg-blue-500/30 cursor-pointer transition"
+                  >
+                    Activer 16:9
+                  </button>
+                </div>
+
+                <ol className="text-xs text-slate-300 space-y-2 list-decimal list-inside leading-relaxed">
+                  <li>
+                    Restez en format <strong>16:9 Paysage</strong> (format horizontal professionnel idéal pour PC).
+                  </li>
+                  <li>
+                    Cliquez sur <strong>"Enregistrer & Télécharger (.webm)"</strong>. Choisissez cet onglet. La démo joue les 5 scènes avec voix-off et se télécharge toute seule !
+                  </li>
+                  <li>
+                    Sur LinkedIn, créez un nouveau post, joignez le fichier vidéo téléchargé, et collez le post pré-rédigé.
+                  </li>
+                </ol>
+
+                <div className="pt-2 flex items-center gap-2">
+                  <button
+                    onClick={() => handleCopyText(linkedInPost, 'copy_linkedin_guide')}
+                    className="w-full py-2 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 text-blue-200 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    {copiedId === 'copy_linkedin_guide' ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-300" />
+                        <span>Post LinkedIn copié !</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copier le post LinkedIn optimisé</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Instruction shortcuts */}
+            <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 text-xs text-slate-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>
-                  <strong>Astuce d'enregistrement :</strong> Lancez ce lecteur et enregistrez votre écran en 1080p avec votre smartphone ou un outil de capture (Windows : Win+Alt+R, Mac : Cmd+Maj+5, ou Loom/OBS) pour publier directement la vidéo sur vos réseaux sociaux !
+                  <strong>Raccourcis rapides d'enregistrement d'écran :</strong> Windows : <code className="text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">Touche Windows + Alt + R</code> • Mac : <code className="text-emerald-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">Cmd + Maj + 5</code>
                 </span>
               </div>
               <button
@@ -835,17 +1141,17 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
                     'all_script'
                   )
                 }
-                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold shrink-0 transition flex items-center gap-1.5 cursor-pointer text-xs"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold shrink-0 transition flex items-center gap-1.5 cursor-pointer text-xs"
               >
                 {copiedId === 'all_script' ? (
                   <>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Script copié !</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Script complet copié !</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5" />
-                    <span>Copier le script complet</span>
+                    <span>Copier le script audio complet</span>
                   </>
                 )}
               </button>
@@ -884,6 +1190,20 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
               <pre className="p-4 rounded-xl bg-slate-950 text-xs text-slate-300 font-sans whitespace-pre-wrap border border-slate-800 leading-relaxed">
                 {linkedInPost}
               </pre>
+
+              <div className="pt-1 flex items-center justify-between text-xs">
+                <span className="text-slate-400">Format recommandé : 16:9 Paysage</span>
+                <button
+                  onClick={() => {
+                    setFormatMode('16:9');
+                    setActiveTab('video_player');
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Lancer la démo en 16:9 (LinkedIn)</span>
+                </button>
+              </div>
             </div>
 
             {/* Script Vidéo Reels / TikTok */}
@@ -914,6 +1234,20 @@ Nous offrons 14 jours d'essai gratuit sans carte bancaire sur immoai.fr. Avez-vo
               <pre className="p-4 rounded-xl bg-slate-950 text-xs text-slate-300 font-sans whitespace-pre-wrap border border-slate-800 leading-relaxed">
                 {scriptReelsTikTok}
               </pre>
+
+              <div className="pt-1 flex items-center justify-between text-xs">
+                <span className="text-slate-400">Format recommandé : 9:16 Vertical</span>
+                <button
+                  onClick={() => {
+                    setFormatMode('9:16');
+                    setActiveTab('video_player');
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-pink-600/30 hover:bg-pink-600/50 text-pink-200 border border-pink-500/40 font-bold transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Lancer la démo en 9:16 (TikTok)</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
