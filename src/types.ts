@@ -31,6 +31,22 @@ export interface PayslipAnalysis {
   pointsVigilance: string[];
   recommandationAgent: string;
   syntheseDossier: string;
+  // Avis d'Imposition & Contrôle Fiscal (DGFIP)
+  documentType?: 'bulletin_paie' | 'avis_imposition' | 'dossier_complet';
+  revenuFiscalReference?: number;
+  revenuFiscalMensuelMoyen?: number;
+  anneeRevenus?: string;
+  nombrePartsFiscales?: number;
+  situationFoyer?: string;
+  impotNetEtabli?: number;
+  numeroFiscal?: string;
+  referenceAvis?: string;
+  verifAvisUrl?: string;
+  coherenceFiscale?: {
+    estCoherent: boolean;
+    ecartPourcentage: number;
+    verdict: string;
+  };
 }
 
 export interface CandidateDossier {
@@ -57,6 +73,14 @@ export interface CandidateDossier {
   warnings: string[];
   recommendation: string;
   analyzedViaAI: boolean;
+  // Avis d'imposition data
+  taxNoticeVerified?: boolean;
+  revenuFiscalReference?: number;
+  revenuFiscalMensuelMoyen?: number;
+  anneeRevenus?: string;
+  nombrePartsFiscales?: number;
+  numeroFiscal?: string;
+  referenceAvis?: string;
 }
 
 export interface SampleDocument {
@@ -67,6 +91,7 @@ export interface SampleDocument {
   propertyId: string;
   description: string;
   content: string;
+  docType?: 'bulletin_paie' | 'avis_imposition' | 'dossier_complet';
 }
 
 export interface AgencyProfile {

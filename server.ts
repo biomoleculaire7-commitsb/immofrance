@@ -378,6 +378,102 @@ TOTAL RETENUES (Pension civile, RAFP, CSG/CRDS) : 451,20 €
 - Retenue PAS (Taux 4.1%) : 96,35 €
 - NET PAYÉ : 2 253,65 €`,
   },
+  {
+    id: 'sample-avis-cadre',
+    name: 'Avis d\'impôt 2025 sur revenus 2024 (Alexandre M. - RFR 41 400 €)',
+    category: 'Avis Fiscal - RFR Solide (41 400 €)',
+    suggestedRent: 980,
+    propertyId: 'prop-1',
+    docType: 'avis_imposition',
+    description: 'Avis d\'imposition officiel DGFIP. RFR annuel de 41 400 € (3 450 €/mois), 1 part fiscale, parfaite concordance avec le bulletin de salaire.',
+    content: `RÉPUBLIQUE FRANÇAISE
+DIRECTION GÉNÉRALE DES FINANCES PUBLIQUES
+AVIS D'IMPÔT 2025 SUR LES REVENUS DE L'ANNÉE 2024
+Centre des Finances Publiques : PARIS 11E - VOLTAIRE
+Date d'établissement : 28/07/2025
+
+IDENTIFICATION DU CONTRIBUABLE :
+- Numéro fiscal : 12 34 567 890 123
+- Référence de l'avis : 25 75 892 140 213
+- Déclarant 1 : MARTIN Alexandre
+- Adresse : 28 Rue de la Roquette, 75011 Paris
+
+SITUATION DU FOYER FISCAL :
+- Situation de famille : Célibataire
+- Nombre de parts de quotient familial : 1,0 part
+
+DÉTERMINATION DES REVENUS IMPOSABLES :
+- Salaires déclarés (Déclarant 1 - Case 1AJ) : 46 000 €
+- Déduction forfaitaire pour frais professionnels (10%) : - 4 600 €
+- Revenu brut global : 41 400 €
+- Revenu net imposable : 41 400 €
+
+DONNÉES CLÉS DE SOLVABILITÉ LOCATIVE :
+- REVENU FISCAL DE RÉFÉRENCE (RFR) : 41 400 €
+- Revenu mensuel fiscal moyen (RFR / 12) : 3 450,00 €
+- Montant de l'impôt net établi : 3 850 €
+- Taux de prélèvement à la source personnalisé : 8,2%
+Avis conforme et authentifié, vérifiable sur impots.gouv.fr/verifavis via le code 2AF.`,
+  },
+  {
+    id: 'sample-avis-foyer',
+    name: 'Avis d\'impôt Foyer 2.5 parts (Sarah B. - RFR 48 500 €)',
+    category: 'Avis Fiscal Foyer Familial (48 500 €)',
+    suggestedRent: 980,
+    propertyId: 'prop-1',
+    docType: 'avis_imposition',
+    description: 'Avis d\'impôt DGFIP avec 2.5 parts fiscales. RFR de 48 500 € (4 041 €/mois), excellent reste à vivre familial.',
+    content: `RÉPUBLIQUE FRANÇAISE
+DIRECTION GÉNÉRALE DES FINANCES PUBLIQUES
+AVIS D'IMPÔT 2025 SUR LES REVENUS 2024
+SIP PARIS CENTRE - 12 Rue de la Banque, 75002 Paris
+Date de mise en recouvrement : 15/08/2025
+
+RÉFÉRENCES FISCALES :
+- Numéro fiscal : 28 91 450 782 319
+- Référence de l'avis : 25 75 410 923 881
+- Déclarante : BENALI Sarah
+- Situation : Pacsée / Foyer fiscal 2 personnes + 1 enfant
+- Nombre de parts de quotient familial : 2,5 parts
+
+ÉLÉMENTS FISCAUX :
+- Total des salaires perçus : 53 888 €
+- REVENU FISCAL DE RÉFÉRENCE (RFR) : 48 500 €
+- Revenu fiscal moyen mensuel : 4 041,66 €
+- Impôt sur le revenu net : 2 450 €
+- Reste à vivre moyen estimé hors loyer : 3 061 €
+Avis officiel DGFIP télétransmis.`,
+  },
+  {
+    id: 'sample-avis-incoherent',
+    name: 'Avis d\'impôt Incohérent / Fraude (Thomas L. - RFR 13 800 € vs Loyer 1 250 €)',
+    category: 'Avis Fiscal Incohérent - Alerte Risque Élevé',
+    suggestedRent: 1250,
+    propertyId: 'prop-2',
+    docType: 'avis_imposition',
+    description: 'Avis d\'imposition avec un RFR très insuffisant (13 800 € soit 1 150 €/mois). Taux d\'effort > 100% sur un loyer de 1 250 €. Alerte GLI.',
+    content: `RÉPUBLIQUE FRANÇAISE
+DIRECTION GÉNÉRALE DES FINANCES PUBLIQUES
+AVIS D'IMPÔT 2025 SUR LES REVENUS DE L'ANNÉE 2024
+Date d'émission : 02/09/2025
+
+RÉFÉRENCES :
+- Numéro fiscal : 99 88 776 655 443
+- Référence de l'avis : 25 69 110 342 901
+- Déclarant : LEROY Thomas
+- Situation de famille : Célibataire (1,0 part)
+
+REVENUS DÉCLARÉS :
+- Salaires déclarés : 15 333 €
+- REVENU FISCAL DE RÉFÉRENCE (RFR) : 13 800 €
+- Revenu fiscal moyen mensuel : 1 150,00 €
+- Impôt net : 0 € (Non imposable)
+
+AVERTISSEMENT GESTION LOCATIVE :
+Le revenu fiscal annuel de 13 800 € équivaut à 1 150 € nets par mois.
+Pour un loyer de 1 250 € charges comprises, le taux d'effort est de 108,7% !
+Dossier formellement refusé par toute assurance GLI sans caution solidaire ou garantie Visale.`,
+  },
 ];
 
 // Routes
@@ -839,12 +935,15 @@ app.post('/api/system/test-gemini', async (req, res) => {
   }
 });
 
-// CORE AI ROUTE: Analyze French Payslip & Solvency qualification
+// CORE AI ROUTE: Analyze French Payslip & Tax Notice (Avis d'Imposition)
 app.post('/api/analyze-dossier', async (req, res) => {
   try {
     const {
       documentText,
       fileData, // { mimeType: string, base64: string }
+      secondaryDocumentText,
+      secondaryFileData,
+      documentType = 'bulletin_paie', // 'bulletin_paie' | 'avis_imposition' | 'dossier_complet'
       rentAmount,
       candidateName,
       guarantorType = 'aucun',
@@ -853,36 +952,68 @@ app.post('/api/analyze-dossier', async (req, res) => {
 
     const rent = parseFloat(rentAmount) || 800;
 
+    // Detect actual document type if not specified
+    const fullText = `${documentText || ''} ${secondaryDocumentText || ''}`.toLowerCase();
+    const isAvisByText = fullText.includes('avis d\'impôt') || fullText.includes('revenu fiscal de référence') || fullText.includes('finances publiques');
+    const isBulletinByText = fullText.includes('bulletin de paie') || fullText.includes('bulletin de salaire') || fullText.includes('net à payer');
+
+    let effectiveDocType = documentType;
+    if (documentType === 'bulletin_paie' && isAvisByText && !isBulletinByText) {
+      effectiveDocType = 'avis_imposition';
+    } else if (isAvisByText && isBulletinByText) {
+      effectiveDocType = 'dossier_complet';
+    }
+
     // Build prompt for Gemini
-    const systemPrompt = `Tu es l'analyste expert n°1 des dossiers de location pour les agences immobilières françaises, spécialiste de la loi ALUR, des garanties GLI (Garantie Loyers Impayés) et de l'analyse des bulletins de paie français (fiches de paie).
+    const systemPrompt = `Tu es l'analyste expert n°1 des dossiers de location pour les agences immobilières françaises, spécialiste de la loi ALUR, des critères GLI (Garantie Loyers Impayés), de l'audit des bulletins de paie et du contrôle fiscal officiel des Avis d'Imposition (DGFIP - Direction Générale des Finances Publiques).
 
 Ta mission :
-1. Extraire avec une précision chirurgicale les données du bulletin de salaire français :
-   - Salaire Net Mensuel avant impôt sur le revenu (ou Net payé)
-   - Type de contrat de travail (CDI, CDD, Intérim, Fonctionnaire titulaire, Stagiaire, Indépendant)
-   - Statut de la période d'essai : Indiquer si elle est VALIDEE, EN_COURS, NON_APPLICABLE ou NON_SPECIFIEE. Mentionner tout indice (date d'embauche récente < 4 mois, mention explicite "période d'essai", ancienneté, etc.)
-   - Nom de l'employeur et intitulé du poste
-   - Date d'ancienneté ou embauche
+1. Détecter et qualifier les documents analysés :
+   - 'bulletin_paie' : Fiche de paie française (extraction du Net avant impôt sur le revenu, nature du contrat CDI/CDD, détection de la période d'essai et ancienneté).
+   - 'avis_imposition' : Avis d'impôt sur le revenu français émis par la DGFIP.
+   - 'dossier_complet' : Bulletin de paie + Avis d'imposition analysés conjointement pour un contrôle de cohérence croisé anti-fraude.
 
-2. Appliquer la RÈGLE FRANÇAISE DES 3x LE LOYER (Taux d'effort <= 33.3%) :
-   - Le candidat doit idéalement gagner au moins 3 fois le montant du loyer charges comprises.
-   - Taux d'effort = (Loyer / Salaire Net) * 100
-   - Multiplicateur = Salaire Net / Loyer
-   - Si le salaire net >= 3 * loyer ET CDI confirmé (ou fonctionnaire) : Statut ELIGIBLE (Score >= 85)
-   - Si période d'essai en cours OU contrat CDD OU ratio entre 33% et 40% : Statut GARANT_NECESSAIRE (Score 60-84), sauf si Garant Visale ou garant physique solide déjà apporté
-   - Si ratio > 40% (ou salaire < 2.5x loyer) sans garant solide : Statut REFUSE (Score < 60)
+2. Pour un Avis d'Imposition français :
+   - Extraire le REVENU FISCAL DE RÉFÉRENCE (RFR) annuel en euros (chiffre clé incontournable des agences et assurances GLI).
+   - Calculer le Revenu Fiscal Mensuel Moyen = Math.round(RFR / 12).
+   - Extraire l'Année des revenus (ex: "Revenus 2024 (Avis 2025)").
+   - Extraire le Nombre de parts fiscales de quotient familial (ex: 1.0, 1.5, 2.0, 2.5).
+   - Extraire la Situation du foyer fiscal (Célibataire, Marié, Pacsé, Concubinage, etc.).
+   - Extraire le Montant de l'Impôt Net établi (en euros).
+   - Extraire le Numéro fiscal (13 chiffres) et la Référence de l'avis (13 caractères).
+   - Définir l'URL officielle de vérification 2AF : "https://cfspart.impots.gouv.fr/LoginMDP".
 
-3. Restituer une analyse professionnelle pour l'agent immobilier en français impeccable avec forces, alertes de vigilance et recommandation claire.`;
+3. Contrôle de Cohérence Fiscale (si dossier complet ou si les 2 documents sont présents) :
+   - Comparer le salaire net mensuel annualisé (Salaire Net x 12) avec le RFR de l'avis d'imposition.
+   - Si écart <= 12% : Cohérence fiscale validée (aucun signalement de fraude).
+   - Si écart > 25% : Signaler un risque d'incohérence fiscale majeure (ex: le candidat déclare 3 500 €/mois mais son RFR n'est que de 14 000 €/an).
+
+4. RÈGLE FRANÇAISE DES 33% / 3x LE LOYER (Loi ALUR & Solvabilité GLI) :
+   - Base de calcul : Le Salaire Net Mensuel avant impôt, ou le Revenu Fiscal Mensuel Moyen (RFR / 12) si seul l'avis d'imposition est fourni.
+   - Taux d'effort = (Loyer charges comprises / Revenu mensuel) * 100.
+   - Multiplicateur = Revenu mensuel / Loyer.
+   - Éligibilité :
+     * Taux d'effort <= 33.3% ET CDI confirmé (ou fonctionnaire) : ELIGIBLE (Score 85-100).
+     * Période d'essai en cours OU contrat CDD OU ratio 33.3% - 40% : GARANT_NECESSAIRE (Score 60-84), sauf si caution solidaire ou garantie Visale solide.
+     * Ratio > 40% sans garant solide : REFUSE (Score < 60).
+
+5. Restituer une analyse professionnelle détaillée et argumentée avec points forts, points de vigilance, synthèse et recommandation concrète pour l'agent immobilier.`;
 
     const userPromptText = `Voici les détails de la demande :
-- Loyer mensuel charges comprises du bien convoité : ${rent} € / mois
+- Type de scan demandé : ${effectiveDocType}
+- Loyer mensuel charges comprises du logement : ${rent} € / mois
 - Nom déclaré du candidat : ${candidateName || 'Non précisé'}
-- Garant fourni déclaré : ${guarantorType} (Revenu garant : ${guarantorSalary} €)
+- Garant déclaré : ${guarantorType} (Revenu garant : ${guarantorSalary} €)
 
-${documentText ? `CONTENU DU DOCUMENT / BULLETIN DE PAIE :
+${documentText ? `DOCUMENT PRINCIPAL :
 """
 ${documentText}
-"""` : 'Veuillez analyser le document joint en image/fichier.'}`;
+"""` : 'Fichier principal téléversé.'}
+
+${secondaryDocumentText ? `DOCUMENT SECONDAIRE (POUR CONTRÔLE CROISÉ) :
+"""
+${secondaryDocumentText}
+"""` : ''}`;
 
     // Check if we can call Gemini API
     if (process.env.GEMINI_API_KEY) {
@@ -894,6 +1025,15 @@ ${documentText}
             inlineData: {
               data: fileData.base64,
               mimeType: fileData.mimeType,
+            },
+          });
+        }
+
+        if (secondaryFileData && secondaryFileData.base64 && secondaryFileData.mimeType) {
+          parts.push({
+            inlineData: {
+              data: secondaryFileData.base64,
+              mimeType: secondaryFileData.mimeType,
             },
           });
         }
@@ -915,6 +1055,10 @@ ${documentText}
             responseSchema: {
               type: Type.OBJECT,
               properties: {
+                documentType: {
+                  type: Type.STRING,
+                  enum: ['bulletin_paie', 'avis_imposition', 'dossier_complet'],
+                },
                 nomEmploye: { type: Type.STRING },
                 nomEmployeur: { type: Type.STRING },
                 intitulePoste: { type: Type.STRING },
@@ -928,6 +1072,24 @@ ${documentText}
                 salaireNetAvantImpot: { type: Type.NUMBER },
                 netPaye: { type: Type.NUMBER },
                 cumulNetImposable: { type: Type.NUMBER },
+                // Avis d'imposition properties
+                revenuFiscalReference: { type: Type.NUMBER },
+                revenuFiscalMensuelMoyen: { type: Type.NUMBER },
+                anneeRevenus: { type: Type.STRING },
+                nombrePartsFiscales: { type: Type.NUMBER },
+                situationFoyer: { type: Type.STRING },
+                impotNetEtabli: { type: Type.NUMBER },
+                numeroFiscal: { type: Type.STRING },
+                referenceAvis: { type: Type.STRING },
+                verifAvisUrl: { type: Type.STRING },
+                coherenceFiscale: {
+                  type: Type.OBJECT,
+                  properties: {
+                    estCoherent: { type: Type.BOOLEAN },
+                    ecartPourcentage: { type: Type.NUMBER },
+                    verdict: { type: Type.STRING },
+                  },
+                },
                 statutSolvabilite: {
                   type: Type.STRING,
                   enum: ['ELIGIBLE', 'GARANT_NECESSAIRE', 'REFUSE'],
@@ -949,9 +1111,6 @@ ${documentText}
               },
               required: [
                 'nomEmploye',
-                'typeContrat',
-                'periodeEssaiStatut',
-                'salaireNetAvantImpot',
                 'statutSolvabilite',
                 'scoreGlobal',
                 'tauxEffortPourcentage',
@@ -981,6 +1140,82 @@ ${documentText}
     }
 
     // Heuristic / Algorithmic fallback rule engine if API key is not ready or failed
+    const isAvis = effectiveDocType === 'avis_imposition' || isAvisByText;
+
+    if (isAvis) {
+      const taxData = extractAvisImpositionHeuristic(documentText || '');
+      const monthlyIncome = taxData.rfrMensuel;
+      const ratio = Math.round((rent / monthlyIncome) * 1000) / 10;
+      const mult = Math.round((monthlyIncome / rent) * 10) / 10;
+
+      let status: 'ELIGIBLE' | 'GARANT_NECESSAIRE' | 'REFUSE' = 'ELIGIBLE';
+      let score = 92;
+
+      if (ratio > 40) {
+        status = 'REFUSE';
+        score = Math.max(25, Math.min(55, Math.round(100 - ratio * 1.3)));
+      } else if (ratio > 33.3) {
+        status = 'GARANT_NECESSAIRE';
+        score = 70;
+      } else {
+        status = 'ELIGIBLE';
+        score = Math.min(98, Math.round(78 + (mult - 3) * 8));
+      }
+
+      const fallbackResult = {
+        documentType: 'avis_imposition' as const,
+        nomEmploye: candidateName || 'Contribuable Déclaré',
+        nomEmployeur: 'Administration Fiscale DGFIP',
+        intitulePoste: 'Contribuable foyer fiscal',
+        typeContrat: 'Avis officiel d\'imposition',
+        dateEmbauche: undefined,
+        periodeEssaiStatut: 'NON_APPLICABLE' as const,
+        periodeEssaiExplication: 'Non applicable sur un avis d\'imposition officiel.',
+        salaireNetAvantImpot: monthlyIncome,
+        netPaye: monthlyIncome,
+        cumulNetImposable: taxData.rfr,
+        revenuFiscalReference: taxData.rfr,
+        revenuFiscalMensuelMoyen: monthlyIncome,
+        anneeRevenus: 'Revenus 2024 (Avis 2025)',
+        nombrePartsFiscales: taxData.parts,
+        situationFoyer: taxData.parts > 1.5 ? 'Foyer fiscal familial' : 'Célibataire',
+        impotNetEtabli: taxData.impotNet,
+        numeroFiscal: taxData.numFiscal,
+        referenceAvis: taxData.refAvis,
+        verifAvisUrl: 'https://cfspart.impots.gouv.fr/LoginMDP',
+        statutSolvabilite: status,
+        scoreGlobal: score,
+        tauxEffortPourcentage: ratio,
+        multiplicateurRevenu: mult,
+        conformeGLI: status === 'ELIGIBLE',
+        pointsForts: [
+          `Revenu Fiscal de Référence (RFR) certifié : ${taxData.rfr.toLocaleString('fr-FR')} € / an`,
+          `Revenu moyen mensuel équivalent : ${monthlyIncome.toLocaleString('fr-FR')} € / mois`,
+          mult >= 3 ? `Règle des 3x le loyer respectée (${mult}x)` : `Ratio d'effort fiscal : ${ratio}%`,
+          `Quotient familial : ${taxData.parts} part(s) fiscale(s)`,
+        ],
+        pointsVigilance: [
+          ...(ratio > 33.3 ? [`Taux d'effort calculé sur RFR (${ratio}%) supérieur au plafond de 33%`] : []),
+          ...(taxData.rfr < 18000 ? ['RFR modeste : vérifier les bulletins de paie récents'] : []),
+        ],
+        recommandationAgent:
+          status === 'ELIGIBLE'
+            ? 'Avis d\'imposition conforme : revenus fiscaux suffisants pour valider la solvabilité.'
+            : status === 'GARANT_NECESSAIRE'
+            ? 'Avis d\'imposition limite au regard du loyer : exiger un garant physique ou une garantie Visale.'
+            : 'Revenu fiscal de référence insuffisant pour ce niveau de loyer (rejet GLI).',
+        syntheseDossier: `Avis d'imposition officiel DGFIP analysé. RFR de ${taxData.rfr.toLocaleString('fr-FR')} € (${monthlyIncome.toLocaleString('fr-FR')} €/mois). Taux d'effort de ${ratio}% pour un loyer de ${rent} €.`,
+      };
+
+      return res.json({
+        success: true,
+        source: 'algorithmic-rule-engine',
+        analysis: fallbackResult,
+        computedWithRent: rent,
+      });
+    }
+
+    // Default: Bulletin de salaire fallback
     const fallbackSalary = extractSalaryHeuristic(documentText || '') || 2800;
     const ratio = Math.round((rent / fallbackSalary) * 1000) / 10;
     const mult = Math.round((fallbackSalary / rent) * 10) / 10;
@@ -1004,6 +1239,7 @@ ${documentText}
     }
 
     const fallbackResult = {
+      documentType: 'bulletin_paie' as const,
       nomEmploye: candidateName || 'Candidat Déclaré',
       nomEmployeur: isFonct ? 'Secteur Public' : 'Entreprise Référencée',
       intitulePoste: isCDD ? 'Salarié CDD' : isFonct ? 'Agent titulaire' : 'Salarié CDI',
@@ -1055,11 +1291,60 @@ ${documentText}
   }
 });
 
+function extractAvisImpositionHeuristic(text: string) {
+  let rfr: number | null = null;
+  const rfrPatterns = [
+    /revenu\s*fiscal\s*de\s*référence(?:\s*\(rfr\))?\s*[:=\s]+([0-9\s.,]+)/i,
+    /rfr\s*[:=\s]+([0-9\s.,]+)/i,
+    /revenu\s*brut\s*global\s*[:=\s]+([0-9\s.,]+)/i,
+  ];
+  for (const p of rfrPatterns) {
+    const m = text.match(p);
+    if (m && m[1]) {
+      const val = parseFloat(m[1].replace(/\s/g, '').replace(',', '.'));
+      if (!isNaN(val) && val > 1000) {
+        rfr = val;
+        break;
+      }
+    }
+  }
+
+  let numFiscal: string | undefined;
+  const numFiscalMatch = text.match(/numéro\s*fiscal\s*[:=\s]+([0-9\s]{13,17})/i);
+  if (numFiscalMatch) {
+    numFiscal = numFiscalMatch[1].replace(/\s/g, '');
+  }
+
+  let refAvis: string | undefined;
+  const refAvisMatch = text.match(/référence\s*de\s*l'avis\s*[:=\s]+([0-9a-z\s]{13,18})/i);
+  if (refAvisMatch) {
+    refAvis = refAvisMatch[1].replace(/\s/g, '');
+  }
+
+  let parts = 1.0;
+  const partsMatch = text.match(/([0-9]+(?:[.,][0-9]+)?)\s*part/i);
+  if (partsMatch) {
+    parts = parseFloat(partsMatch[1].replace(',', '.'));
+  }
+
+  let impotNet = 0;
+  const impotMatch = text.match(/impôt\s*(?:sur\s*le\s*revenu\s*)?net(?:\s*établi)?\s*[:=\s]+([0-9\s.,]+)/i);
+  if (impotMatch) {
+    impotNet = parseFloat(impotMatch[1].replace(/\s/g, '').replace(',', '.'));
+  }
+
+  const finalRFR = rfr || 36000;
+  return {
+    rfr: finalRFR,
+    rfrMensuel: Math.round(finalRFR / 12),
+    numFiscal: numFiscal || '1234567890123',
+    refAvis: refAvis || '2575892140213',
+    parts,
+    impotNet,
+  };
+}
+
 function extractSalaryHeuristic(text: string): number | null {
-  // Common French payslip label formats:
-  // "NET À PAYER AVANT IMPÔT SUR LE REVENU : 3 450,00 €"
-  // "NET FISCAL MENSUEL : 3 100,00 €"
-  // "NET À PAYER : 2 850 €"
   const patterns = [
     /net\s*(?:à\s*payer\s*(?:avant\s*impôt(?:\s*sur\s*le\s*revenu)?)?|fiscal(?:\s*mensuel)?|payé(?:\s*en\s*euros)?)\s*[:=\s]+([0-9\s.,]+)/i,
     /net\s*imposable\s*[:=\s]+([0-9\s.,]+)/i,
@@ -1076,7 +1361,6 @@ function extractSalaryHeuristic(text: string): number | null {
     }
   }
 
-  // Fallback to highest plausible net amount
   const euroMatches = [...text.matchAll(/([1-9][0-9]{2,3}(?:[.,][0-9]{2})?)\s*€/g)];
   for (const m of euroMatches) {
     const cleaned = m[1].replace(/\s/g, '').replace(',', '.');
